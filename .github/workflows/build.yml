@@ -19,7 +19,8 @@ jobs:
           java-version: '17'
           distribution: 'adopt'
 
-      - name: Build JAR file
+      - name: Get build info and build JAR file
+        id: get-info
         run: |
           mkdir -p bin
           bash build.sh
@@ -44,12 +45,14 @@ jobs:
             - Commit: ${{ github.sha }}
             - Build Time: ${{ github.event.head_commit.timestamp }}
             - File: ${{ steps.get-info.outputs.jar_file }}
+          draft: false
+          prerelease: false
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create-release.outputs.upload_url }}
-          asset_path: ${{ env.release_jar_file }}
+          asset_path: ${{ steps.get-info.outputs.release_jar_file }}
           asset_name: ${{ steps.get-info.outputs.jar_file }}
           asset_content_type: application/java-archive

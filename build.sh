@@ -2,9 +2,7 @@
 COMMIT_HASH=$(git rev-parse --short HEAD)
 JAR_FILE=JNBTExplorer+git-$COMMIT_HASH.jar
 RELEASE_JAR_FILE=JNBTExplorer.jar
-echo "jar_file=$JAR_FILE"			>> $GITHUB_OUTPUT
-echo "commit_hash=$COMMIT_HASH"			>> $GITHUB_OUTPUT
-echo "release_jar_file=$RELEASE_JAR_FILE" 	>> $GITHUB_OUTPUT
+
 echo "Building JNBTExplorer JAR file..."
 
 mkdir -p bin
@@ -24,6 +22,10 @@ if [ $? -ne 0 ]; then
 fi
 
 cp $JAR_FILE $RELEASE_JAR_FILE
+
+echo "jar_file=$JAR_FILE" >> $GITHUB_OUTPUT
+echo "commit_hash=$COMMIT_HASH" >> $GITHUB_OUTPUT
+echo "release_jar_file=$RELEASE_JAR_FILE" >> $GITHUB_OUTPUT
 
 echo ""
 echo "Build successful! Created $RELEASE_JAR_FILE"
