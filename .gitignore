@@ -3,7 +3,7 @@ out/
 bin/
 *.iml
 *.class
-JNBTExplorer.jar
+*.jar
 NBTExplorer/
 *.dat
 

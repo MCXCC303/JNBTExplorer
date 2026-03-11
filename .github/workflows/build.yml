@@ -22,12 +22,34 @@ jobs:
       - name: Build JAR file
         run: |
           mkdir -p bin
-          javac -encoding UTF-8 -d bin -sourcepath src src/com/MCXCC/JNBTExplorer/JNBTExplorerMain.java
-          jar cvfm JNBTExplorer.jar MANIFEST.MF -C bin .
-
+          bash build.sh
+          
       - name: Upload JAR artifact
         uses: actions/upload-artifact@v4
         with:
           name: JNBTExplorer
           path: JNBTExplorer.jar
           retention-days: 30
+
+      - name: Create Release
+        id: create-release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: build-${{ steps.get-info.outputs.commit_hash }}-${{ github.run_number }}
+          release_name: Release ${{ steps.get-info.outputs.commit_hash }} (Build ${{github.run_number}})
+          body: |
+            - Branch: ${{ github.ref }}
+            - Commit: ${{ github.sha }}
+            - Build Time: ${{ github.event.head_commit.timestamp }}
+            - File: ${{ steps.get-info.outputs.jar_file }}
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: ${{ env.release_jar_file }}
+          asset_name: ${{ steps.get-info.outputs.jar_file }}
+          asset_content_type: application/java-archive
