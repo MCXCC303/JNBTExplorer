@@ -27,7 +27,8 @@ public Component getTreeCellRendererComponent(JTree tree, Object value,
 		if (type != null) {
 			// Set icon based on config
 			if (configManager.isShowTypeIcons()) {
-				setIcon(getIconForType(type));
+				boolean hasName = node.getName() != null && !node.getName().isEmpty();
+				setIcon(getIconForType(type, hasName));
 			} else {
 				setIcon(null);
 			}
@@ -99,7 +100,15 @@ private String formatUuid(int[] arr) {
 		((long) (arr[2] & 0xFFFF) << 32) | ((long) arr[3] & 0xFFFFFFFFL));
 }
 
-private Icon getIconForType(TagType type) {
+private Icon getIconForType(TagType type, boolean hasName) {
+	String iconStyle = configManager.getIconStyle();
+	if ("modern".equals(iconStyle)) {
+		return getModernIconForType(type, hasName);
+	}
+	return getClassicIconForType(type);
+}
+
+private Icon getClassicIconForType(TagType type) {
 	return switch (type) {
 		case TAG_BYTE -> createColorIcon(Color.CYAN, "B");
 		case TAG_SHORT -> createColorIcon(Color.CYAN.darker(), "S");
@@ -118,6 +127,30 @@ private Icon getIconForType(TagType type) {
 	};
 }
 
+private Icon getModernIconForType(TagType type, boolean hasName) {
+	int size = hasName ? 16 : 10;
+	return switch (type) {
+		case TAG_BYTE -> createModernIcon(new Color(0, 188, 212), Shape.CIRCLE, size);
+		case TAG_SHORT -> createModernIcon(new Color(0, 151, 167), Shape.CIRCLE, size);
+		case TAG_INT -> createModernIcon(new Color(33, 150, 243), Shape.SQUARE, size);
+		case TAG_LONG -> createModernIcon(new Color(25, 118, 210), Shape.SQUARE, size);
+		case TAG_FLOAT -> createModernIcon(new Color(76, 175, 80), Shape.DIAMOND, size);
+		case TAG_DOUBLE -> createModernIcon(new Color(56, 142, 60), Shape.DIAMOND, size);
+		case TAG_BYTE_ARRAY -> createModernIcon(new Color(156, 39, 176), Shape.HEXAGON, size);
+		case TAG_STRING -> createModernIcon(new Color(255, 193, 7), Shape.ROUNDED, size);
+		case TAG_LIST -> createModernIcon(new Color(255, 152, 0), Shape.FOLDER, size);
+		case TAG_COMPOUND -> createModernIcon(new Color(244, 67, 54), Shape.FOLDER, size);
+		case TAG_INT_ARRAY -> createModernIcon(new Color(123, 31, 162), Shape.HEXAGON, size);
+		case TAG_LONG_ARRAY -> createModernIcon(new Color(74, 20, 140), Shape.HEXAGON, size);
+		case TAG_SHORT_ARRAY -> createModernIcon(new Color(186, 104, 200), Shape.HEXAGON, size);
+		default -> null;
+	};
+}
+
+private enum Shape {
+	CIRCLE, SQUARE, DIAMOND, HEXAGON, ROUNDED, FOLDER
+}
+
 private Icon createColorIcon(Color color, String text) {
 	return new Icon() {
 		@Override
@@ -132,6 +165,59 @@ private Icon createColorIcon(Color color, String text) {
 				int textY = y + (16 + fm.getAscent() - fm.getDescent()) / 2;
 				g.drawString(text, textX, textY);
 			}
+		}
+
+		@Override
+		public int getIconWidth() {
+			return 16;
+		}
+
+		@Override
+		public int getIconHeight() {
+			return 16;
+		}
+	};
+}
+
+private Icon createModernIcon(Color color, Shape shape, int size) {
+	return new Icon() {
+		@Override
+		public void paintIcon(Component c, Graphics g, int x, int y) {
+			Graphics2D g2d = (Graphics2D) g.create();
+			g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+			int offset = (16 - size) / 2;
+
+			g2d.setColor(color);
+			switch (shape) {
+				case CIRCLE -> g2d.fillOval(x + offset, y + offset, size, size);
+				case SQUARE -> {
+					g2d.fillRect(x + offset, y + offset, size, size);
+					g2d.setColor(color.darker());
+					g2d.drawRect(x + offset, y + offset, size - 1, size - 1);
+				}
+				case DIAMOND -> {
+					int halfSize = size / 2;
+					int[] xp = {x + offset + halfSize, x + offset + size - 1, x + offset + halfSize, x + offset};
+					int[] yp = {y + offset, y + offset + halfSize, y + offset + size - 1, y + offset + halfSize};
+					g2d.fillPolygon(xp, yp, 4);
+				}
+				case HEXAGON -> {
+					int quarter = size / 4;
+					int[] xp = {x + offset + quarter, x + offset + size - quarter - 1, x + offset + size - 1, x + offset + size - quarter - 1, x + offset + quarter, x + offset};
+					int[] yp = {y + offset, y + offset, y + offset + size / 2, y + offset + size - 1, y + offset + size - 1, y + offset + size / 2};
+					g2d.fillPolygon(xp, yp, 6);
+				}
+				case ROUNDED -> g2d.fillRoundRect(x + offset, y + offset, size, size, 4, 4);
+				case FOLDER -> {
+					int folderHeight = size * 11 / 16;
+					int folderY = y + offset + size - folderHeight;
+					g2d.fillRect(x + offset, folderY, size, folderHeight);
+					g2d.fillRect(x + offset, y + offset, size * 6 / 16, size * 3 / 16);
+				}
+			}
+
+			g2d.dispose();
 		}
 
 		@Override

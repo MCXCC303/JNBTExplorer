@@ -134,4 +134,12 @@ public boolean isShowArrayRawValues() {
 public void setShowArrayRawValues(boolean show) {
 	properties.setProperty("showArrayRawValues", String.valueOf(show));
 }
+
+public String getIconStyle() {
+	return properties.getProperty("iconStyle", "classic");
+}
+
+public void setIconStyle(String style) {
+	properties.setProperty("iconStyle", style);
+}
 }

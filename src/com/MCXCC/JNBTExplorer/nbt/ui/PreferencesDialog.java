@@ -12,6 +12,7 @@ private final ConfigManager configManager;
 private final Logger logger;
 private JComboBox<String> typeSortModeComboBox;
 private JComboBox<String> nameSortModeComboBox;
+private JComboBox<String> iconStyleComboBox;
 private JCheckBox dragAndDropCheckBox;
 private JCheckBox showTypeIconsCheckBox;
 private JCheckBox alwaysShowNamesCheckBox;
@@ -27,11 +28,11 @@ public PreferencesDialog(JFrame parent, ConfigManager configManager, Logger logg
 }
 
 private void initComponents() {
-	setSize(600, 350);
+	setSize(600, 400);
 	setLayout(new BorderLayout());
 
 	JPanel contentPanel = new JPanel();
-	contentPanel.setLayout(new GridLayout(6, 2, 10, 10));
+	contentPanel.setLayout(new GridLayout(7, 2, 10, 10));
 	contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
 	// Default Type Sort Mode
@@ -69,6 +70,18 @@ private void initComponents() {
 	}
 	contentPanel.add(nameSortModeLabel);
 	contentPanel.add(nameSortModeComboBox);
+
+	// Icon Style
+	JLabel iconStyleLabel = new JLabel("Icon Style:");
+	iconStyleComboBox = new JComboBox<>(new String[]{"Classic", "Modern"});
+	String currentIconStyle = configManager.getIconStyle();
+	if ("modern".equals(currentIconStyle)) {
+		iconStyleComboBox.setSelectedIndex(1);
+	} else {
+		iconStyleComboBox.setSelectedIndex(0);
+	}
+	contentPanel.add(iconStyleLabel);
+	contentPanel.add(iconStyleComboBox);
 
 	// Enable Drag and Drop
 	JLabel dragAndDropLabel = new JLabel("*Enable Drag and Drop (Beta):");
@@ -151,6 +164,14 @@ private void savePreferences() {
 		configManager.setDefaultNameSortMode("NONE");
 	}
 
+	// Save icon style
+	int iconStyleIndex = iconStyleComboBox.getSelectedIndex();
+	if (iconStyleIndex == 1) {
+		configManager.setIconStyle("modern");
+	} else {
+		configManager.setIconStyle("classic");
+	}
+
 	// Save other preferences
 	configManager.setDragAndDropEnabled(dragAndDropCheckBox.isSelected());
 	configManager.setShowTypeIcons(showTypeIconsCheckBox.isSelected());
@@ -167,8 +188,10 @@ public boolean isConfirmed() {
 }
 
 public boolean shouldRefreshUI() {
+	String newIconStyle = iconStyleComboBox.getSelectedIndex() == 1 ? "modern" : "classic";
 	return showTypeIconsCheckBox.isSelected() != configManager.isShowTypeIcons() ||
 		alwaysShowNamesCheckBox.isSelected() != configManager.isAlwaysShowNames() ||
-		showArrayRawValuesCheckBox.isSelected() != configManager.isShowArrayRawValues();
+		showArrayRawValuesCheckBox.isSelected() != configManager.isShowArrayRawValues() ||
+		!newIconStyle.equals(configManager.getIconStyle());
 }
 }

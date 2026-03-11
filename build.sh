@@ -1,4 +1,14 @@
 #!/bin/bash
+if [ "$1" = "clear" ]; then
+    echo "Cleaning build artifacts..."
+    rm -rfv bin
+    rm -rfv out
+    rm -fv JNBTExplorer.jar
+    rm -fv JNBTExplorer+git-*.jar
+    echo "Clean completed!"
+    exit 0
+fi
+
 COMMIT_HASH=$(git rev-parse --short HEAD)
 JAR_FILE=JNBTExplorer+git-$COMMIT_HASH.jar
 RELEASE_JAR_FILE=JNBTExplorer.jar

@@ -22,17 +22,18 @@ public EditTagDialog(JFrame parent, Tag tag) {
 private void initUI() {
 	setLayout(new BorderLayout());
 
-	// Set different sizes based on tag type
+	boolean hasName = tag.getName() != null && !tag.getName().isEmpty();
+
 	TagType type = tag.getType();
 	if (type == TagType.TAG_INT_ARRAY || type == TagType.TAG_LONG_ARRAY || type == TagType.TAG_SHORT_ARRAY) {
 		setSize(800, 260);
-	} else {
+	} else if (hasName) {
 		setSize(500, 150);
+	} else {
+		setSize(500, 120);
 	}
 
 	setLocationRelativeTo(getParent());
-
-	boolean hasName = tag.getName() != null && !tag.getName().isEmpty();
 
 	JPanel mainPanel = new JPanel(new BorderLayout());
 	mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -46,25 +47,26 @@ private void initUI() {
 
 	infoPanel.add(new JLabel("Value:"));
 	valueField = new JTextField(getValueString());
-	valueField.setEditable(false);
 	infoPanel.add(valueField);
+
+	boolean isHexEditor = tag.getType() == TagType.TAG_INT_ARRAY && ((TagIntArray) tag).getValue().length == 4;
+	if (isHexEditor) {
+		valueField.setEditable(false);
+	}
 
 	mainPanel.add(infoPanel, BorderLayout.NORTH);
 
-	if (tag.getType() == TagType.TAG_INT_ARRAY) {
-		int[] arr = ((TagIntArray) tag).getValue();
-		if (arr.length == 4) {
-			JPanel hexPanel = new JPanel(new BorderLayout());
-			hexPanel.setBorder(BorderFactory.createTitledBorder("Hex Editor"));
+	if (isHexEditor) {
+		JPanel hexPanel = new JPanel(new BorderLayout());
+		hexPanel.setBorder(BorderFactory.createTitledBorder("Hex Editor"));
 
-			hexArea = new JTextField(getHexString(arr));
-			hexArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+		hexArea = new JTextField(getHexString(((TagIntArray) tag).getValue()));
+		hexArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
 
-			JScrollPane scrollPane = new JScrollPane(hexArea);
-			hexPanel.add(scrollPane, BorderLayout.CENTER);
+		JScrollPane scrollPane = new JScrollPane(hexArea);
+		hexPanel.add(scrollPane, BorderLayout.CENTER);
 
-			mainPanel.add(hexPanel, BorderLayout.CENTER);
-		}
+		mainPanel.add(hexPanel, BorderLayout.CENTER);
 	}
 
 	add(mainPanel, BorderLayout.CENTER);
@@ -116,14 +118,7 @@ private String getValueString() {
 		case TAG_LONG_ARRAY -> {
 			long[] arr = ((TagLongArray) tag).getValue();
 			if (com.MCXCC.JNBTExplorer.nbt.model.NBTNode.isShowArrayRawValues()) {
-				StringBuilder sb = new StringBuilder();
-				for (int i = 0; i < arr.length; i++) {
-					sb.append(arr[i]);
-					if (i < arr.length - 1) {
-						sb.append(", ");
-					}
-				}
-				yield sb.toString();
+				yield formatLongArray(arr);
 			} else {
 				yield "[" + arr.length + " longs]";
 			}
@@ -131,14 +126,7 @@ private String getValueString() {
 		case TAG_SHORT_ARRAY -> {
 			short[] arr = ((TagShortArray) tag).getValue();
 			if (com.MCXCC.JNBTExplorer.nbt.model.NBTNode.isShowArrayRawValues()) {
-				StringBuilder sb = new StringBuilder();
-				for (int i = 0; i < arr.length; i++) {
-					sb.append(arr[i]);
-					if (i < arr.length - 1) {
-						sb.append(", ");
-					}
-				}
-				yield sb.toString();
+				yield formatShortArray(arr);
 			} else {
 				yield "[" + arr.length + " shorts]";
 			}
@@ -163,6 +151,39 @@ private String getHexString(int[] arr) {
 		}
 		if (i < arr.length - 1) {
 			sb.append("  ");
+		}
+	}
+	return sb.toString();
+}
+
+private String formatIntArray(int[] arr) {
+	StringBuilder sb = new StringBuilder();
+	for (int i = 0; i < arr.length; i++) {
+		sb.append(arr[i]);
+		if (i < arr.length - 1) {
+			sb.append(", ");
+		}
+	}
+	return sb.toString();
+}
+
+private String formatLongArray(long[] arr) {
+	StringBuilder sb = new StringBuilder();
+	for (int i = 0; i < arr.length; i++) {
+		sb.append(arr[i]);
+		if (i < arr.length - 1) {
+			sb.append(", ");
+		}
+	}
+	return sb.toString();
+}
+
+private String formatShortArray(short[] arr) {
+	StringBuilder sb = new StringBuilder();
+	for (int i = 0; i < arr.length; i++) {
+		sb.append(arr[i]);
+		if (i < arr.length - 1) {
+			sb.append(", ");
 		}
 	}
 	return sb.toString();
