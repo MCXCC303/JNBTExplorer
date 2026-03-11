@@ -22,7 +22,7 @@ jobs:
       - name: Build JAR file
         run: |
           mkdir -p bin
-          javac -encoding UTF-8 -d bin -sourcepath src src/com/example/main/Main.java
+          javac -encoding UTF-8 -d bin -sourcepath src src/com/MCXCC/JNBTExplorer/JNBTExplorerMain.java
           jar cvfm JNBTExplorer.jar MANIFEST.MF -C bin .
 
       - name: Upload JAR artifact
