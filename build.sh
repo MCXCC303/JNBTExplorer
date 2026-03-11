@@ -7,7 +7,7 @@ mkdir -p bin
 
 # Compile all Java files
 echo "Compiling Java files..."
-javac -encoding UTF-8 -d bin -sourcepath src src/com/example/main/Main.java
+javac -encoding UTF-8 -d bin -sourcepath src src/com/MCXCC/JNBTExplorer/JNBTExplorerMain.java
 if [ $? -ne 0 ]; then
     echo "Compilation failed!"
     exit 1

@@ -13,14 +13,14 @@ Vibe Coding产物，使用Swing图形库编写，重写自[NBTExplorer](https://
 使用以下命令编译运行项目：
 
 ```shell
-javac -encoding UTF-8 -d bin -sourcepath src src/com/example/main/Main.java
-java -cp src com.example.main.Main
+javac -encoding UTF-8 -d bin -sourcepath src src/com/MCXCC/JNBTExplorer/JNBTExplorerMainMain.java
+java -cp src com.MCXCC.JNBTExplorer.JNBTExplorerMain
 ```
 
 使用以下命令将项目打包为可执行jar文件：
 
 ```shell
-javac -encoding UTF-8 -d bin -sourcepath src src/com/example/main/Main.java
+javac -encoding UTF-8 -d bin -sourcepath src src/com/MCXCC/JNBTExplorer/JNBTExplorerMain.java
 jar cvfm JNBTExplorer.jar MANIFEST.MF -C bin .
 ```
 

@@ -7,7 +7,7 @@ if not exist bin mkdir bin
 
 REM Compile all Java files
 echo Compiling Java files...
-javac -encoding UTF-8 -d bin -sourcepath src src/com/example/main/Main.java
+javac -encoding UTF-8 -d bin -sourcepath src src/com/MCXCC/JNBTExplorer/JNBTExplorerMain.java
 if errorlevel 1 (
     echo Compilation failed!
     pause
