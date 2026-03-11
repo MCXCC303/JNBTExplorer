@@ -19,9 +19,9 @@ private NBTFile nbtFile;
 private final List<TreeModelListener> listeners;
 private final Logger logger;
 
-public NBTTreeModel() {
+public NBTTreeModel(Logger logger) {
 	this.listeners = new ArrayList<>();
-	this.logger = Logger.getInstance();
+	this.logger = logger;
 }
 
 public void loadFile(String path) throws IOException {
@@ -30,7 +30,7 @@ public void loadFile(String path) throws IOException {
 
 public void loadFile(String path, boolean compressed) throws IOException {
 	logger.info("Loading NBT file: " + path + " (compressed: " + compressed + ")");
-	nbtFile = new NBTFile(path);
+	nbtFile = new NBTFile(path, logger);
 	nbtFile.load(compressed);
 	Tag rootTag = nbtFile.getRootTag();
 	if (rootTag != null) {
@@ -76,7 +76,7 @@ public void saveFileAs(String path) throws IOException {
 
 public void saveFileAs(String path, boolean compressed) throws IOException {
 	logger.info("Saving NBT file as: " + path + " (compressed: " + compressed + ")");
-	nbtFile = new NBTFile(path);
+	nbtFile = new NBTFile(path, logger);
 	nbtFile.setRootTag(root.getTag());
 	nbtFile.save(compressed);
 

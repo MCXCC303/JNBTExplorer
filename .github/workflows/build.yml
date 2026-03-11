@@ -1,0 +1,33 @@
+name: Build and Package JNBTExplorer
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+
+      - name: Build JAR file
+        run: |
+          mkdir -p bin
+          javac -encoding UTF-8 -d bin -sourcepath src src/com/example/main/Main.java
+          jar cvfm JNBTExplorer.jar MANIFEST.MF -C bin .
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JNBTExplorer
+          path: JNBTExplorer.jar
+          retention-days: 30

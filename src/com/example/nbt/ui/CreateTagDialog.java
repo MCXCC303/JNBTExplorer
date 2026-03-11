@@ -31,7 +31,7 @@ private void initUI() {
 		TagType.TAG_BYTE, TagType.TAG_SHORT, TagType.TAG_INT, TagType.TAG_LONG,
 		TagType.TAG_FLOAT, TagType.TAG_DOUBLE, TagType.TAG_BYTE_ARRAY,
 		TagType.TAG_STRING, TagType.TAG_LIST, TagType.TAG_COMPOUND,
-		TagType.TAG_INT_ARRAY, TagType.TAG_LONG_ARRAY
+		TagType.TAG_INT_ARRAY, TagType.TAG_LONG_ARRAY, TagType.TAG_SHORT_ARRAY
 	});
 	panel.add(typeCombo);
 
@@ -93,6 +93,9 @@ private void createTag() {
 				break;
 			case TAG_LONG_ARRAY:
 				newTag = new TagLongArray(name, new long[0]);
+				break;
+			case TAG_SHORT_ARRAY:
+				newTag = new TagShortArray(name, new short[0]);
 				break;
 			case TAG_LIST:
 				newTag = new TagList(name, TagType.TAG_END);

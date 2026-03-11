@@ -8,24 +8,24 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class Logger {
-private static final String LOG_FILE_NAME = "nbt_editor.log";
 private static final String APP_NAME = "JNBTExplorer";
 private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-private static Logger instance;
+private static final SimpleDateFormat FILE_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
 private PrintWriter writer;
 private boolean initialized;
 private String logFilePath;
 
-private Logger() {
+public Logger(Date windowCreationTime) {
 	try {
 
 		String configDir = getConfigDirectory();
-		File logDir = new File(configDir);
+		File logDir = new File(configDir, "log");
 		if (!logDir.exists()) {
 			logDir.mkdirs();
 		}
 
-		logFilePath = new File(logDir, LOG_FILE_NAME).getAbsolutePath();
+		String fileName = FILE_DATE_FORMAT.format(windowCreationTime) + ".log";
+		logFilePath = new File(logDir, fileName).getAbsolutePath();
 		writer = new PrintWriter(new FileWriter(logFilePath, true));
 		initialized = true;
 		info("Logger initialized, log file: " + logFilePath);
@@ -59,13 +59,6 @@ private String getConfigDirectory() {
 			return userHome + File.separator + "AppData" + File.separator + "Roaming" + File.separator + APP_NAME;
 		}
 	}
-}
-
-public static Logger getInstance() {
-	if (instance == null) {
-		instance = new Logger();
-	}
-	return instance;
 }
 
 public void info(String message) {

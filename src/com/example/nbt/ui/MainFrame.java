@@ -2,6 +2,7 @@ package com.example.nbt.ui;
 
 import com.example.nbt.model.*;
 import com.example.nbt.tag.*;
+import com.example.nbt.util.ConfigManager;
 import com.example.nbt.util.Logger;
 
 import javax.swing.*;
@@ -16,6 +17,7 @@ import java.awt.event.*;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 public class MainFrame extends JFrame implements DropTargetListener {
@@ -23,20 +25,17 @@ private final NBTTreeModel treeModel;
 private JTree tree;
 private JLabel statusLabel;
 private File currentFile;
-private final Logger logger;
+public final Logger logger;
+private final ConfigManager configManager;
 private JButton pasteButton;
 private JMenuItem pasteMenuItem;
 private JMenuItem popupPasteItem;
 private JMenuItem blankPasteItem;
 private JMenu expandMenu;
 private JMenu collapseMenu;
-private JMenuItem expandItem;
-private JMenuItem expandAllItem;
-private JMenuItem collapseItem;
-private JMenuItem collapseAllItem;
 private final CommandManager commandManager;
-private SortMode typeSortMode = SortMode.TYPE_DESC;
-private SortMode nameSortMode = SortMode.NAME_ASC;
+private SortMode typeSortMode;
+private SortMode nameSortMode;
 private JPopupMenu popupMenu;
 private JPopupMenu blankPopupMenu;
 private JMenuItem addItem;
@@ -45,14 +44,56 @@ private JMenuItem deleteItem;
 private JSeparator separator1;
 private JSeparator separator2;
 
+// Search functionality
+private JTextField searchField;
+private JButton searchNextButton;
+private JButton searchPrevButton;
+private JToolBar toolBar2;
+private boolean searchPanelVisible = false;
+private List<NBTNode> searchResults;
+private int currentSearchIndex;
+
+// Find and Replace
+private FindReplaceDialog findReplaceDialog;
+private NBTNode currentReplaceNode;
+
 public MainFrame() {
 	this(null);
 }
 
 public MainFrame(String filePath) {
-	this.logger = Logger.getInstance();
+	Date windowCreationTime = new Date();
+	this.logger = new Logger(windowCreationTime);
+	this.configManager = new ConfigManager();
 	this.commandManager = new CommandManager();
 	logger.info("Creating MainFrame");
+
+	// Initialize search variables
+	searchResults = new ArrayList<>();
+	currentSearchIndex = -1;
+
+	// Set default sort modes from config
+	String typeSortModeStr = configManager.getDefaultTypeSortMode();
+	if (typeSortModeStr.equals("TYPE_ASC")) {
+		typeSortMode = SortMode.TYPE_ASC;
+	} else if (typeSortModeStr.equals("TYPE_DESC")) {
+		typeSortMode = SortMode.TYPE_DESC;
+	} else {
+		typeSortMode = SortMode.NONE;
+	}
+
+	String nameSortModeStr = configManager.getDefaultNameSortMode();
+	if (nameSortModeStr.equals("NAME_ASC")) {
+		nameSortMode = SortMode.NAME_ASC;
+	} else if (nameSortModeStr.equals("NAME_DESC")) {
+		nameSortMode = SortMode.NAME_DESC;
+	} else {
+		nameSortMode = SortMode.NONE;
+	}
+
+	NBTNode.setTypeSortMode(typeSortMode);
+	NBTNode.setNameSortMode(nameSortMode);
+	NBTNode.setShowArrayRawValues(configManager.isShowArrayRawValues());
 
 	setTitle("NBT Editor");
 	setSize(800, 600);
@@ -67,7 +108,7 @@ public MainFrame(String filePath) {
 	new DropTarget(this, this);
 	logger.info("Drag and drop support initialized");
 
-	treeModel = new NBTTreeModel();
+	treeModel = new NBTTreeModel(logger);
 
 	if (filePath != null) {
 
@@ -105,7 +146,7 @@ private void initUI() {
 	setLayout(new BorderLayout());
 
 	tree = new JTree();
-	tree.setCellRenderer(new NBTTreeCellRenderer());
+	tree.setCellRenderer(new NBTTreeCellRenderer(configManager));
 	tree.setEditable(false);
 	tree.getSelectionModel().setSelectionMode(TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION);
 
@@ -143,11 +184,13 @@ private void initUI() {
 		}
 	});
 
-	DragSource dragSource = DragSource.getDefaultDragSource();
-	dragSource.createDefaultDragGestureRecognizer(tree,
-		DnDConstants.ACTION_COPY,
-		dge -> {
-			TreePath[] paths = tree.getSelectionPaths();
+	// Enable drag and drop based on config
+	if (configManager.isDragAndDropEnabled()) {
+		DragSource dragSource = DragSource.getDefaultDragSource();
+		dragSource.createDefaultDragGestureRecognizer(tree,
+			DnDConstants.ACTION_COPY,
+			dge -> {
+				TreePath[] paths = tree.getSelectionPaths();
 				if (paths != null && paths.length > 0) {
 					List<Tag> tags = new ArrayList<>();
 					for (TreePath path : paths) {
@@ -188,7 +231,8 @@ private void initUI() {
 						}
 					}
 				}
-		});
+			});
+	}
 
 	registerKeyboardActions();
 
@@ -281,6 +325,12 @@ private void initMenu() {
 	editMenu.addSeparator();
 	editMenu.add(undoItem);
 	editMenu.add(redoItem);
+
+	// Add Preferences menu item
+	editMenu.addSeparator();
+	JMenuItem preferencesItem = new JMenuItem("Preferences...");
+	preferencesItem.addActionListener(e -> showPreferencesDialog());
+	editMenu.add(preferencesItem);
 
 	JMenu viewMenu = new JMenu("View");
 	viewMenu.setMnemonic(KeyEvent.VK_V);
@@ -378,6 +428,43 @@ private void initMenu() {
 	menuBar.add(editMenu);
 	menuBar.add(viewMenu);
 
+	// Search Menu
+	JMenu searchMenu = new JMenu("Search");
+	searchMenu.setMnemonic(KeyEvent.VK_S);
+
+	JMenuItem searchItem = new JMenuItem("Search");
+	searchItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F, InputEvent.CTRL_DOWN_MASK));
+	searchItem.addActionListener(e -> toggleSearchPanel());
+
+	JMenuItem replaceItem = new JMenuItem("Replace");
+	replaceItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_H, InputEvent.CTRL_DOWN_MASK));
+	replaceItem.addActionListener(e -> showFindReplaceDialog());
+
+	JMenuItem searchPrevItem = new JMenuItem("Prev");
+	searchPrevItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F3, InputEvent.SHIFT_DOWN_MASK));
+	searchPrevItem.addActionListener(e -> searchPrevious());
+
+	JMenuItem searchNextItem = new JMenuItem("Next");
+	searchNextItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0));
+	searchNextItem.addActionListener(e -> searchNext());
+
+	JMenuItem replaceNextItem = new JMenuItem("Replace Next");
+	replaceNextItem.addActionListener(e -> replaceNext());
+
+	JMenuItem replaceAllItem = new JMenuItem("Replace All");
+	replaceAllItem.addActionListener(e -> replaceAll());
+
+	searchMenu.add(searchItem);
+	searchMenu.add(replaceItem);
+	searchMenu.addSeparator();
+	searchMenu.add(searchPrevItem);
+	searchMenu.add(searchNextItem);
+	searchMenu.addSeparator();
+	searchMenu.add(replaceNextItem);
+	searchMenu.add(replaceAllItem);
+
+	menuBar.add(searchMenu);
+
 	JMenu helpMenu = new JMenu("Help");
 	helpMenu.setMnemonic(KeyEvent.VK_H);
 
@@ -403,17 +490,17 @@ private void initPopupMenu() {
 	deleteItem.addActionListener(e -> deleteSelectedNode());
 
 	expandMenu = new JMenu("Expand");
-	expandItem = new JMenuItem("Expand");
+	JMenuItem expandItem = new JMenuItem("Expand");
 	expandItem.addActionListener(e -> expandSelectedNode());
-	expandAllItem = new JMenuItem("Expand All");
+	JMenuItem expandAllItem = new JMenuItem("Expand All");
 	expandAllItem.addActionListener(e -> expandAll());
 	expandMenu.add(expandItem);
 	expandMenu.add(expandAllItem);
 
 	collapseMenu = new JMenu("Collapse");
-	collapseItem = new JMenuItem("Collapse");
+	JMenuItem collapseItem = new JMenuItem("Collapse");
 	collapseItem.addActionListener(e -> collapseSelectedNode());
-	collapseAllItem = new JMenuItem("Collapse All");
+	JMenuItem collapseAllItem = new JMenuItem("Collapse All");
 	collapseAllItem.addActionListener(e -> collapseAll());
 	collapseMenu.add(collapseItem);
 	collapseMenu.add(collapseAllItem);
@@ -454,8 +541,12 @@ private void initPopupMenu() {
 }
 
 private void initToolbar() {
-	JToolBar toolBar = new JToolBar();
-	toolBar.setFloatable(false);
+	// Main toolbar panel to hold multiple rows
+	JPanel toolbarPanel = new JPanel(new BorderLayout());
+
+	// First toolbar row - File operations
+	JToolBar toolBar1 = new JToolBar();
+	toolBar1.setFloatable(false);
 
 	JButton newButton = new JButton("New");
 	newButton.addActionListener(e -> newFile());
@@ -487,21 +578,64 @@ private void initToolbar() {
 	JButton redoButton = new JButton("Redo");
 	redoButton.addActionListener(e -> redo());
 
-	toolBar.add(newButton);
-	toolBar.add(openButton);
-	toolBar.add(saveButton);
-	toolBar.addSeparator();
-	toolBar.add(addButton);
-	toolBar.add(deleteButton);
-	toolBar.addSeparator();
-	toolBar.add(cutButton);
-	toolBar.add(copyButton);
-	toolBar.add(pasteButton);
-	toolBar.addSeparator();
-	toolBar.add(undoButton);
-	toolBar.add(redoButton);
+	toolBar1.add(newButton);
+	toolBar1.add(openButton);
+	toolBar1.add(saveButton);
+	toolBar1.addSeparator();
+	toolBar1.add(addButton);
+	toolBar1.add(deleteButton);
+	toolBar1.addSeparator();
+	toolBar1.add(cutButton);
+	toolBar1.add(copyButton);
+	toolBar1.add(pasteButton);
+	toolBar1.addSeparator();
+	toolBar1.add(undoButton);
+	toolBar1.add(redoButton);
 
-	add(toolBar, BorderLayout.NORTH);
+	toolbarPanel.add(toolBar1, BorderLayout.NORTH);
+
+	// Second toolbar row - Search functionality
+	toolBar2 = new JToolBar();
+	toolBar2.setFloatable(false);
+
+	JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+	searchField = new JTextField(20);
+	searchField.setToolTipText("Search for tag names or values");
+
+	JButton searchButton = new JButton("Search");
+	searchButton.addActionListener(e -> performSearch());
+
+	searchNextButton = new JButton("Next");
+	searchNextButton.addActionListener(e -> searchNext());
+	searchNextButton.setEnabled(false);
+
+	searchPrevButton = new JButton("Prev");
+	searchPrevButton.addActionListener(e -> searchPrevious());
+	searchPrevButton.setEnabled(false);
+
+	searchPanel.add(new JLabel("Search:"));
+	searchPanel.add(searchField);
+	searchPanel.add(searchButton);
+	searchPanel.add(searchNextButton);
+	searchPanel.add(searchPrevButton);
+
+	toolBar2.add(searchPanel);
+
+	// Set initial visibility based on searchPanelVisible (default: false)
+	toolBar2.setVisible(searchPanelVisible);
+
+	toolbarPanel.add(toolBar2, BorderLayout.SOUTH);
+
+	add(toolbarPanel, BorderLayout.NORTH);
+}
+
+private void toggleSearchPanel() {
+	searchPanelVisible = !searchPanelVisible;
+	toolBar2.setVisible(searchPanelVisible);
+	logger.info("Search panel visibility: " + searchPanelVisible);
+	if (searchPanelVisible) {
+		searchField.requestFocus();
+	}
 }
 
 private void newFile() {
@@ -616,9 +750,319 @@ private boolean checkSave() {
 	return true;
 }
 
+// Search functionality methods
+private void performSearch() {
+	String searchText = searchField.getText().trim();
+	if (searchText.isEmpty()) {
+		JOptionPane.showMessageDialog(this, "Please enter search text", "Error", JOptionPane.ERROR_MESSAGE);
+		return;
+	}
+
+	logger.info("Performing full search: " + searchText);
+	searchResults.clear();
+	currentSearchIndex = -1;
+
+	// Start search from root
+	NBTNode root = (NBTNode) treeModel.getRoot();
+	searchNodesFull(root, searchText);
+
+	if (searchResults.isEmpty()) {
+		statusLabel.setText("No results found");
+		updateSearchButtons();
+		JOptionPane.showMessageDialog(this, "No results found", "Search", JOptionPane.INFORMATION_MESSAGE);
+	} else {
+		currentSearchIndex = 0;
+		selectSearchResult();
+		updateSearchButtons();
+		statusLabel.setText("Found " + searchResults.size() + " results - " + (currentSearchIndex + 1) + "/" + searchResults.size());
+		logger.info("Found " + searchResults.size() + " results");
+	}
+}
+
+private void searchNodesFull(NBTNode node, String searchText) {
+	if (node == null) return;
+
+	// Load children if not already loaded (for full search)
+	boolean wasExpanded = node.getChildCount() > 0;
+	if (!wasExpanded) {
+		node.loadChildren();
+	}
+
+	Tag tag = node.getTag();
+	if (tag != null) {
+		// Search by name
+		String name = tag.getName();
+		if (name != null && name.toLowerCase().contains(searchText.toLowerCase())) {
+			if (!searchResults.contains(node)) {
+				searchResults.add(node);
+			}
+		}
+
+		// Search by value
+		String value = node.toString();
+		if (value.toLowerCase().contains(searchText.toLowerCase())) {
+			if (!searchResults.contains(node)) {
+				searchResults.add(node);
+			}
+		}
+	}
+
+	// Recursively search children
+	for (int i = 0; i < node.getChildCount(); i++) {
+		NBTNode child = (NBTNode) node.getChildAt(i);
+		searchNodesFull(child, searchText);
+	}
+}
+
+private void searchNext() {
+	if (!searchResults.isEmpty()) {
+		currentSearchIndex = (currentSearchIndex + 1) % searchResults.size();
+		selectSearchResult();
+		statusLabel.setText("Found " + searchResults.size() + " results - " + (currentSearchIndex + 1) + "/" + searchResults.size());
+	}
+}
+
+private void searchPrevious() {
+	if (!searchResults.isEmpty()) {
+		currentSearchIndex = (currentSearchIndex - 1 + searchResults.size()) % searchResults.size();
+		selectSearchResult();
+		statusLabel.setText("Found " + searchResults.size() + " results - " + (currentSearchIndex + 1) + "/" + searchResults.size());
+	}
+}
+
+private void selectSearchResult() {
+	if (!searchResults.isEmpty() && currentSearchIndex >= 0 && currentSearchIndex < searchResults.size()) {
+		NBTNode node = searchResults.get(currentSearchIndex);
+		TreePath path = getTreePath(node);
+		tree.scrollPathToVisible(path);
+		tree.setSelectionPath(path);
+		tree.expandPath(path.getParentPath());
+	}
+}
+
+private TreePath getTreePath(NBTNode node) {
+	List<NBTNode> path = new ArrayList<>();
+	NBTNode current = node;
+	while (current != null) {
+		path.add(0, current);
+		current = (NBTNode) current.getParent();
+	}
+	return new TreePath(path.toArray());
+}
+
+private void updateSearchButtons() {
+	boolean hasResults = !searchResults.isEmpty();
+	searchNextButton.setEnabled(hasResults);
+	searchPrevButton.setEnabled(hasResults);
+}
+
+private void resetSearch() {
+	searchResults.clear();
+	currentSearchIndex = -1;
+	updateSearchButtons();
+	statusLabel.setText("Ready");
+}
+
+// Find and Replace functionality
+private void showFindReplaceDialog() {
+	logger.info("Showing Find and Replace dialog");
+	findReplaceDialog = new FindReplaceDialog(this);
+	findReplaceDialog.setVisible(true);
+
+	if (findReplaceDialog.isConfirmed()) {
+		// Perform initial search
+		performAdvancedSearch();
+	}
+}
+
+private void performAdvancedSearch() {
+	if (findReplaceDialog == null) return;
+
+	String findName = findReplaceDialog.getFindName();
+	String findValue = findReplaceDialog.getFindValue();
+
+	if (findName.isEmpty() && findValue.isEmpty()) {
+		JOptionPane.showMessageDialog(this, "Please enter search criteria", "Error", JOptionPane.ERROR_MESSAGE);
+		return;
+	}
+
+	logger.info("Performing advanced search - Name: " + findName + ", Value: " + findValue);
+	searchResults.clear();
+	currentSearchIndex = -1;
+
+	// Start search from root
+	NBTNode root = (NBTNode) treeModel.getRoot();
+	searchNodesAdvanced(root, findReplaceDialog);
+
+	if (searchResults.isEmpty()) {
+		statusLabel.setText("No results found");
+		updateSearchButtons();
+		JOptionPane.showMessageDialog(this, "No results found", "Search", JOptionPane.INFORMATION_MESSAGE);
+	} else {
+		currentSearchIndex = 0;
+		selectSearchResult();
+		updateSearchButtons();
+		statusLabel.setText("Found " + searchResults.size() + " results - " + (currentSearchIndex + 1) + "/" + searchResults.size());
+		logger.info("Found " + searchResults.size() + " results");
+	}
+}
+
+private void searchNodesAdvanced(NBTNode node, FindReplaceDialog dialog) {
+	if (node == null) return;
+
+	// Load children if not already loaded
+	boolean wasExpanded = node.getChildCount() > 0;
+	if (!wasExpanded) {
+		node.loadChildren();
+	}
+
+	Tag tag = node.getTag();
+	if (tag != null) {
+		boolean nameMatch = true;
+		boolean valueMatch = true;
+
+		// Check name match
+		if (dialog.isFindByName() && !dialog.getFindName().isEmpty()) {
+			String name = tag.getName();
+			nameMatch = dialog.matchesName(name);
+		}
+
+		// Check value match
+		if (dialog.isFindByValue() && !dialog.getFindValue().isEmpty()) {
+			String value = node.toString();
+			valueMatch = dialog.matchesValue(value);
+		}
+
+		// If both match, add to results
+		if (nameMatch && valueMatch) {
+			if (!searchResults.contains(node)) {
+				searchResults.add(node);
+			}
+		}
+	}
+
+	// Recursively search children
+	for (int i = 0; i < node.getChildCount(); i++) {
+		NBTNode child = (NBTNode) node.getChildAt(i);
+		searchNodesAdvanced(child, dialog);
+	}
+}
+
+private void replaceNext() {
+	if (findReplaceDialog == null) {
+		showFindReplaceDialog();
+		return;
+	}
+
+	if (searchResults.isEmpty()) {
+		performAdvancedSearch();
+		return;
+	}
+
+	if (currentSearchIndex >= 0 && currentSearchIndex < searchResults.size()) {
+		NBTNode node = searchResults.get(currentSearchIndex);
+		performReplace(node);
+		searchNext();
+	}
+}
+
+private void replaceAll() {
+	if (findReplaceDialog == null) {
+		showFindReplaceDialog();
+		return;
+	}
+
+	if (searchResults.isEmpty()) {
+		performAdvancedSearch();
+		return;
+	}
+
+	int replaceCount = 0;
+	for (NBTNode node : searchResults) {
+		if (performReplace(node)) {
+			replaceCount++;
+		}
+	}
+
+	statusLabel.setText("Replaced " + replaceCount + " occurrences");
+	logger.info("Replaced " + replaceCount + " occurrences");
+	JOptionPane.showMessageDialog(this, "Replaced " + replaceCount + " occurrences", "Replace All", JOptionPane.INFORMATION_MESSAGE);
+
+	// Refresh tree
+	treeModel.fireTreeStructureChanged(new TreePath(treeModel.getRoot()));
+}
+
+private boolean performReplace(NBTNode node) {
+	if (findReplaceDialog == null || node == null) return false;
+
+	Tag tag = node.getTag();
+	if (tag == null) return false;
+
+	boolean replaced = false;
+
+	// Replace name
+	if (findReplaceDialog.isReplaceName() && !findReplaceDialog.getReplaceName().isEmpty()) {
+		String oldName = tag.getName();
+		String newName = findReplaceDialog.getReplaceName();
+		tag.setName(newName);
+		node.setModified(true);
+		logger.info("Replaced name: '" + oldName + "' -> '" + newName + "'");
+		replaced = true;
+	}
+
+	// Replace value (only for simple types)
+	if (findReplaceDialog.isReplaceValue() && !findReplaceDialog.getReplaceValue().isEmpty()) {
+		String newValue = findReplaceDialog.getReplaceValue();
+		try {
+			switch (tag.getType()) {
+				case TAG_BYTE:
+					((TagByte) tag).setValue(Byte.parseByte(newValue));
+					replaced = true;
+					break;
+				case TAG_SHORT:
+					((TagShort) tag).setValue(Short.parseShort(newValue));
+					replaced = true;
+					break;
+				case TAG_INT:
+					((TagInt) tag).setValue(Integer.parseInt(newValue));
+					replaced = true;
+					break;
+				case TAG_LONG:
+					((TagLong) tag).setValue(Long.parseLong(newValue));
+					replaced = true;
+					break;
+				case TAG_FLOAT:
+					((TagFloat) tag).setValue(Float.parseFloat(newValue));
+					replaced = true;
+					break;
+				case TAG_DOUBLE:
+					((TagDouble) tag).setValue(Double.parseDouble(newValue));
+					replaced = true;
+					break;
+				case TAG_STRING:
+					((TagString) tag).setValue(newValue);
+					replaced = true;
+					break;
+				default:
+					// Cannot replace value for complex types
+					break;
+			}
+			if (replaced) {
+				node.setModified(true);
+				logger.info("Replaced value of tag: " + tag.getName());
+			}
+		} catch (NumberFormatException e) {
+			logger.error("Invalid value format for replacement: " + newValue);
+		}
+	}
+
+	return replaced;
+}
+
 private void exit() {
 	if (checkSave()) {
 		logger.info("Closing window");
+		logger.close();
 		dispose();
 	}
 }
@@ -637,6 +1081,65 @@ private void showAboutDialog() {
 	About aboutDialog = new About(this);
 	aboutDialog.setVisible(true);
 	logger.info("About dialog closed");
+}
+
+private void showPreferencesDialog() {
+	logger.info("Showing Preferences dialog");
+	PreferencesDialog preferencesDialog = new PreferencesDialog(this, configManager, logger);
+	preferencesDialog.setVisible(true);
+
+	if (preferencesDialog.isConfirmed()) {
+		// Update sort modes
+		String typeSortModeStr = configManager.getDefaultTypeSortMode();
+		String nameSortModeStr = configManager.getDefaultNameSortMode();
+
+		if (typeSortModeStr.equals("TYPE_ASC")) {
+			NBTNode.setTypeSortMode(SortMode.TYPE_ASC);
+		} else if (typeSortModeStr.equals("TYPE_DESC")) {
+			NBTNode.setTypeSortMode(SortMode.TYPE_DESC);
+		} else {
+			NBTNode.setTypeSortMode(SortMode.NONE);
+		}
+
+		if (nameSortModeStr.equals("NAME_ASC")) {
+			NBTNode.setNameSortMode(SortMode.NAME_ASC);
+		} else if (nameSortModeStr.equals("NAME_DESC")) {
+			NBTNode.setNameSortMode(SortMode.NAME_DESC);
+		} else {
+			NBTNode.setNameSortMode(SortMode.NONE);
+		}
+
+		// Update array raw values setting
+		NBTNode.setShowArrayRawValues(configManager.isShowArrayRawValues());
+
+		// Check if UI needs to be refreshed
+		if (preferencesDialog.shouldRefreshUI()) {
+			// Refresh tree to reflect changes
+			treeModel.fireTreeStructureChanged(new TreePath(treeModel.getRoot()));
+			logger.info("UI refreshed due to preference changes");
+		}
+
+		// Update local sort mode variables
+		if (typeSortModeStr.equals("TYPE_ASC")) {
+			typeSortMode = SortMode.TYPE_ASC;
+		} else if (typeSortModeStr.equals("TYPE_DESC")) {
+			typeSortMode = SortMode.TYPE_DESC;
+		} else {
+			typeSortMode = SortMode.NONE;
+		}
+
+		if (nameSortModeStr.equals("NAME_ASC")) {
+			nameSortMode = SortMode.NAME_ASC;
+		} else if (nameSortModeStr.equals("NAME_DESC")) {
+			nameSortMode = SortMode.NAME_DESC;
+		} else {
+			nameSortMode = SortMode.NONE;
+		}
+
+		logger.info("Preferences applied");
+	}
+
+	logger.info("Preferences dialog closed");
 }
 
 private void registerKeyboardActions() {
@@ -903,33 +1406,89 @@ private void copySelectedNode() {
 }
 
 private void cutSelectedNode() {
-	TreePath path = tree.getSelectionPath();
-	if (path == null || path.getParentPath() == null) {
+	TreePath[] paths = tree.getSelectionPaths();
+	if (paths == null || paths.length == 0) {
 		return;
 	}
 
-	NBTNode node = (NBTNode) path.getLastPathComponent();
-	NBTNode parent = (NBTNode) path.getParentPath().getLastPathComponent();
-	Tag tag = node.getTag();
+	// Check if all selected nodes have the same parent
+	NBTNode parent = null;
+	List<Tag> tagsToCut = new ArrayList<>();
+	List<NBTNode> nodesToCut = new ArrayList<>();
 
-	logger.info("Cutting tag: " + tag.getName() + " (type: " + tag.getType() + ")");
+	for (TreePath path : paths) {
+		if (path.getParentPath() == null) {
+			// Cannot cut root node
+			return;
+		}
 
-	NBTClipboard.getInstance().copyTag(tag);
+		NBTNode currentParent = (NBTNode) path.getParentPath().getLastPathComponent();
+		if (parent == null) {
+			parent = currentParent;
+		} else if (parent != currentParent) {
+			// All selected nodes must have the same parent
+			JOptionPane.showMessageDialog(this, "All selected nodes must have the same parent", "Error", JOptionPane.ERROR_MESSAGE);
+			return;
+		}
 
-	NBTCommand command;
-	if (parent.getTag() instanceof TagCompound) {
-		command = new DeleteTagCommand((TagCompound) parent.getTag(), tag);
-	} else {
-		int index = parent.getIndex(node);
-		command = new DeleteTagCommand((TagList) parent.getTag(), tag, index);
+		NBTNode node = (NBTNode) path.getLastPathComponent();
+		Tag tag = node.getTag();
+		if (tag != null) {
+			tagsToCut.add(tag);
+			nodesToCut.add(node);
+		}
 	}
-	commandManager.executeCommand(command);
 
-	parent.removeChildTag(node);
-	treeModel.fireTreeStructureChanged(path.getParentPath());
+	if (tagsToCut.isEmpty()) {
+		return;
+	}
+
+	logger.info("Cutting " + tagsToCut.size() + " tags");
+
+	// Copy tags to clipboard
+	if (tagsToCut.size() == 1) {
+		NBTClipboard.getInstance().copyTag(tagsToCut.get(0));
+	} else {
+		NBTClipboard.getInstance().copyTags(tagsToCut);
+	}
+
+	// Create composite command for batch operation
+	CompositeCommand compositeCommand = new CompositeCommand(tagsToCut.size() == 1 ? "Cut tag" : "Cut " + tagsToCut.size() + " tags");
+
+	// Create and add delete commands
+	for (int i = 0; i < tagsToCut.size(); i++) {
+		Tag tag = tagsToCut.get(i);
+		NBTNode node = nodesToCut.get(i);
+
+		NBTCommand command;
+		if (parent.getTag() instanceof TagCompound) {
+			command = new DeleteTagCommand((TagCompound) parent.getTag(), tag);
+		} else {
+			int index = parent.getIndex(node);
+			command = new DeleteTagCommand((TagList) parent.getTag(), tag, index);
+		}
+		compositeCommand.addCommand(command);
+
+		parent.removeChildTag(node);
+	}
+
+	// Execute composite command
+	if (!compositeCommand.isEmpty()) {
+		commandManager.executeCommand(compositeCommand);
+	}
+
+	// Update UI
+	treeModel.fireTreeStructureChanged(paths[0].getParentPath());
 	updateTitle();
-	statusLabel.setText("Cut tag: " + node.getName());
-	logger.info("Cut tag: " + tag.getName() + " (type: " + tag.getType() + ")");
+
+	if (tagsToCut.size() == 1) {
+		statusLabel.setText("Cut tag: " + tagsToCut.get(0).getName());
+		logger.info("Cut tag: " + tagsToCut.get(0).getName() + " (type: " + tagsToCut.get(0).getType() + ")");
+	} else {
+		statusLabel.setText("Cut " + tagsToCut.size() + " tags");
+		logger.info("Cut " + tagsToCut.size() + " tags");
+	}
+
 	updatePasteButtonState();
 }
 
@@ -1291,7 +1850,7 @@ private boolean isTagFlavorSupported(DropTargetDragEvent dtde) {
 		if ((flavor.getRepresentationClass() != null &&
 			Tag.class.isAssignableFrom(flavor.getRepresentationClass())) ||
 			(flavor.getRepresentationClass() != null &&
-			List.class.isAssignableFrom(flavor.getRepresentationClass()))) {
+				List.class.isAssignableFrom(flavor.getRepresentationClass()))) {
 			return true;
 		}
 	}
@@ -1303,7 +1862,7 @@ private boolean isTagFlavorSupportedDrop(DropTargetDropEvent dtde) {
 		if ((flavor.getRepresentationClass() != null &&
 			Tag.class.isAssignableFrom(flavor.getRepresentationClass())) ||
 			(flavor.getRepresentationClass() != null &&
-			List.class.isAssignableFrom(flavor.getRepresentationClass()))) {
+				List.class.isAssignableFrom(flavor.getRepresentationClass()))) {
 			return true;
 		}
 	}
@@ -1365,7 +1924,6 @@ private void handleTagDrop(DropTargetDropEvent dtde) {
 			} else if (flavor.getRepresentationClass() != null &&
 				Tag.class.isAssignableFrom(flavor.getRepresentationClass())) {
 				data = dtde.getTransferable().getTransferData(flavor);
-				isTagList = false;
 				break;
 			}
 		}

@@ -1,6 +1,6 @@
 package com.example.nbt.model;
 
-import com.example.nbt.tag.*;
+import com.example.nbt.tag.Tag;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,19 +39,8 @@ public List<Tag> getCopiedTags() {
 	return copiedTags;
 }
 
-public Tag getCopiedTag() {
-	if (copiedTags != null && !copiedTags.isEmpty()) {
-		return copiedTags.get(0);
-	}
-	return null;
-}
-
 public boolean hasTag() {
 	return copiedTags != null && !copiedTags.isEmpty();
-}
-
-public int getCopiedCount() {
-	return copiedTags != null ? copiedTags.size() : 0;
 }
 
 }

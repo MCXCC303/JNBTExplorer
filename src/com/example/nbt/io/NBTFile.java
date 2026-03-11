@@ -13,9 +13,9 @@ private final File file;
 private Tag rootTag;
 private final Logger logger;
 
-public NBTFile(String path) {
+public NBTFile(String path, Logger logger) {
 	this.file = new File(path);
-	this.logger = Logger.getInstance();
+	this.logger = logger;
 }
 
 public void load(boolean compressed) throws IOException {

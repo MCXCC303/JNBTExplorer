@@ -105,6 +105,14 @@ private Tag readTagPayload(TagType type, String name, int depth) throws IOExcept
 			}
 			return new TagLongArray(name, longs);
 
+		case TAG_SHORT_ARRAY:
+			int shortLength = input.readInt();
+			short[] shorts = new short[shortLength];
+			for (int i = 0; i < shortLength; i++) {
+				shorts[i] = input.readShort();
+			}
+			return new TagShortArray(name, shorts);
+
 		default:
 			throw new IOException("Unknown tag type: " + type);
 	}

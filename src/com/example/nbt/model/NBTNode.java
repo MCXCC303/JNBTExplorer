@@ -13,6 +13,7 @@ private boolean modified;
 private final List<NBTNode> children;
 private static SortMode typeSortMode = SortMode.TYPE_DESC;
 private static SortMode nameSortMode = SortMode.NAME_ASC;
+private static boolean showArrayRawValues = false;
 
 public NBTNode(Tag tag) {
 	super(tag);
@@ -29,12 +30,12 @@ public static void setNameSortMode(SortMode mode) {
 	nameSortMode = mode;
 }
 
-public static SortMode getTypeSortMode() {
-	return typeSortMode;
+public static void setShowArrayRawValues(boolean show) {
+	showArrayRawValues = show;
 }
 
-public static SortMode getNameSortMode() {
-	return nameSortMode;
+public static boolean isShowArrayRawValues() {
+	return showArrayRawValues;
 }
 
 public Tag getTag() {
@@ -82,7 +83,7 @@ public void loadChildren() {
 	if (tag instanceof TagCompound compound) {
 		List<Tag> sortedTags = new ArrayList<>(compound.getTags());
 
-		Comparator<Tag> comparator = (t1, t2) -> 0; 
+		Comparator<Tag> comparator = (t1, t2) -> 0;
 		boolean hasTypeSort = typeSortMode != SortMode.NONE;
 		boolean hasNameSort = nameSortMode != SortMode.NONE;
 
@@ -99,10 +100,8 @@ public void loadChildren() {
 			});
 
 			if (hasNameSort) {
-				comparator = comparator.thenComparing((Tag t) -> {
-					return t.getName() != null ? t.getName() : "";
-				}, nameSortMode == SortMode.NAME_DESC 
-					? String.CASE_INSENSITIVE_ORDER.reversed() 
+				comparator = comparator.thenComparing((Tag t) -> t.getName() != null ? t.getName() : "", nameSortMode == SortMode.NAME_DESC
+					? String.CASE_INSENSITIVE_ORDER.reversed()
 					: String.CASE_INSENSITIVE_ORDER);
 			}
 		}
@@ -171,16 +170,26 @@ public String toString() {
 	boolean hasName = name != null && !name.isEmpty();
 
 	return switch (tag.getType()) {
-		case TAG_BYTE -> hasName ? name + ": " + ((TagByte) tag).getValue() : String.valueOf(((TagByte) tag).getValue());
-		case TAG_SHORT -> hasName ? name + ": " + ((TagShort) tag).getValue() : String.valueOf(((TagShort) tag).getValue());
-		case TAG_INT -> hasName ? name + ": " + ((TagInt) tag).getValue() : String.valueOf(((TagInt) tag).getValue());
-		case TAG_LONG -> hasName ? name + ": " + ((TagLong) tag).getValue() : String.valueOf(((TagLong) tag).getValue());
-		case TAG_FLOAT -> hasName ? name + ": " + ((TagFloat) tag).getValue() : String.valueOf(((TagFloat) tag).getValue());
-		case TAG_DOUBLE -> hasName ? name + ": " + ((TagDouble) tag).getValue() : String.valueOf(((TagDouble) tag).getValue());
-		case TAG_BYTE_ARRAY -> hasName ? name + " [" + ((TagByteArray) tag).getValue().length + " bytes]" : "[" + ((TagByteArray) tag).getValue().length + " bytes]";
-		case TAG_STRING -> hasName ? name + ": \"" + ((TagString) tag).getValue() + "\"" : "\"" + ((TagString) tag).getValue() + "\"";
-		case TAG_LIST -> hasName ? name + " [" + ((TagList) tag).size() + " entries]" : "[" + ((TagList) tag).size() + " entries]";
-		case TAG_COMPOUND -> hasName ? name + " [" + ((TagCompound) tag).size() + " entries]" : "[" + ((TagCompound) tag).size() + " entries]";
+		case TAG_BYTE ->
+			hasName ? name + ": " + ((TagByte) tag).getValue() : String.valueOf(((TagByte) tag).getValue());
+		case TAG_SHORT ->
+			hasName ? name + ": " + ((TagShort) tag).getValue() : String.valueOf(((TagShort) tag).getValue());
+		case TAG_INT ->
+			hasName ? name + ": " + ((TagInt) tag).getValue() : String.valueOf(((TagInt) tag).getValue());
+		case TAG_LONG ->
+			hasName ? name + ": " + ((TagLong) tag).getValue() : String.valueOf(((TagLong) tag).getValue());
+		case TAG_FLOAT ->
+			hasName ? name + ": " + ((TagFloat) tag).getValue() : String.valueOf(((TagFloat) tag).getValue());
+		case TAG_DOUBLE ->
+			hasName ? name + ": " + ((TagDouble) tag).getValue() : String.valueOf(((TagDouble) tag).getValue());
+		case TAG_BYTE_ARRAY ->
+			hasName ? name + " [" + ((TagByteArray) tag).getValue().length + " bytes]" : "[" + ((TagByteArray) tag).getValue().length + " bytes]";
+		case TAG_STRING ->
+			hasName ? name + ": \"" + ((TagString) tag).getValue() + "\"" : "\"" + ((TagString) tag).getValue() + "\"";
+		case TAG_LIST ->
+			hasName ? name + " [" + ((TagList) tag).size() + " entries]" : "[" + ((TagList) tag).size() + " entries]";
+		case TAG_COMPOUND ->
+			hasName ? name + " [" + ((TagCompound) tag).size() + " entries]" : "[" + ((TagCompound) tag).size() + " entries]";
 		case TAG_INT_ARRAY -> {
 			int[] arr = ((TagIntArray) tag).getValue();
 			if (arr.length == 4) {
@@ -188,18 +197,21 @@ public String toString() {
 			}
 			yield hasName ? name + " [" + arr.length + " ints]" : "[" + arr.length + " ints]";
 		}
-		case TAG_LONG_ARRAY -> hasName ? name + " [" + ((TagLongArray) tag).getValue().length + " longs]" : "[" + ((TagLongArray) tag).getValue().length + " longs]";
+		case TAG_LONG_ARRAY ->
+			hasName ? name + " [" + ((TagLongArray) tag).getValue().length + " longs]" : "[" + ((TagLongArray) tag).getValue().length + " longs]";
+		case TAG_SHORT_ARRAY ->
+			hasName ? name + " [" + ((TagShortArray) tag).getValue().length + " shorts]" : "[" + ((TagShortArray) tag).getValue().length + " shorts]";
 		default -> name;
 	};
 }
 
 private String formatUuid(int[] arr) {
 	if (arr == null || arr.length != 4) return "";
-	return String.format("%08x-%04x-%04x-%04x-%012x", 
-		arr[0], 
-		(arr[1] >> 16) & 0xFFFF, 
-		arr[1] & 0xFFFF, 
-		(arr[2] >> 16) & 0xFFFF, 
+	return String.format("%08x-%04x-%04x-%04x-%012x",
+		arr[0],
+		(arr[1] >> 16) & 0xFFFF,
+		arr[1] & 0xFFFF,
+		(arr[2] >> 16) & 0xFFFF,
 		((long) (arr[2] & 0xFFFF) << 32) | ((long) arr[3] & 0xFFFFFFFFL));
 }
 }

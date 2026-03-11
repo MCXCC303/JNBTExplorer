@@ -7,13 +7,13 @@ public enum SortMode {
 	NAME_DESC("Name (Desc)"),
 	NONE("None (Original Order)");
 
-	private final String displayName;
+private final String displayName;
 
-	SortMode(String displayName) {
-		this.displayName = displayName;
-	}
+SortMode(String displayName) {
+	this.displayName = displayName;
+}
 
-	public String getDisplayName() {
-		return displayName;
-	}
+public String getDisplayName() {
+	return displayName;
+}
 }

@@ -1,13 +1,19 @@
 package com.example.nbt.ui;
 
 import com.example.nbt.model.NBTNode;
-import com.example.nbt.tag.TagType;
+import com.example.nbt.tag.*;
+import com.example.nbt.util.ConfigManager;
 
 import javax.swing.*;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import java.awt.*;
 
 public class NBTTreeCellRenderer extends DefaultTreeCellRenderer {
+private final ConfigManager configManager;
+
+public NBTTreeCellRenderer(ConfigManager configManager) {
+	this.configManager = configManager;
+}
 
 @Override
 public Component getTreeCellRendererComponent(JTree tree, Object value,
@@ -19,12 +25,78 @@ public Component getTreeCellRendererComponent(JTree tree, Object value,
 		TagType type = node.getType();
 
 		if (type != null) {
-			setIcon(getIconForType(type));
-			setText(node.toString());
+			// Set icon based on config
+			if (configManager.isShowTypeIcons()) {
+				setIcon(getIconForType(type));
+			} else {
+				setIcon(null);
+			}
+
+			// Set text based on config
+			String nodeText = node.toString();
+			String tagName = node.getName();
+
+			if (configManager.isAlwaysShowNames()) {
+				// Always show name, even if it's empty
+				if (tagName == null || tagName.isEmpty()) {
+					// For tags without name, show <unnamed>: value
+					String valueText = getValueText(node.getTag());
+					setText("<unnamed>: " + valueText);
+				} else {
+					setText(nodeText);
+				}
+			} else {
+				// Show only value for non-container tags without name
+				if (type == TagType.TAG_COMPOUND || type == TagType.TAG_LIST) {
+					setText(nodeText);
+				} else if (tagName == null || tagName.isEmpty()) {
+					// For tags without name, show only value
+					setText(getValueText(node.getTag()));
+				} else {
+					// For tags with name, show name: value
+					setText(nodeText);
+				}
+			}
 		}
 	}
 
 	return this;
+}
+
+private String getValueText(Tag tag) {
+	if (tag == null) return "";
+
+	return switch (tag.getType()) {
+		case TAG_BYTE -> String.valueOf(((TagByte) tag).getValue());
+		case TAG_SHORT -> String.valueOf(((TagShort) tag).getValue());
+		case TAG_INT -> String.valueOf(((TagInt) tag).getValue());
+		case TAG_LONG -> String.valueOf(((TagLong) tag).getValue());
+		case TAG_FLOAT -> String.valueOf(((TagFloat) tag).getValue());
+		case TAG_DOUBLE -> String.valueOf(((TagDouble) tag).getValue());
+		case TAG_BYTE_ARRAY -> "[" + ((TagByteArray) tag).getValue().length + " bytes]";
+		case TAG_STRING -> "\"" + ((TagString) tag).getValue() + "\"";
+		case TAG_LIST -> "[" + ((TagList) tag).size() + " entries]";
+		case TAG_COMPOUND -> "[" + ((TagCompound) tag).size() + " entries]";
+		case TAG_INT_ARRAY -> {
+			int[] arr = ((TagIntArray) tag).getValue();
+			if (arr.length == 4) {
+				yield formatUuid(arr);
+			}
+			yield "[" + arr.length + " ints]";
+		}
+		case TAG_LONG_ARRAY -> "[" + ((TagLongArray) tag).getValue().length + " longs]";
+		default -> "";
+	};
+}
+
+private String formatUuid(int[] arr) {
+	if (arr == null || arr.length != 4) return "";
+	return String.format("%08x-%04x-%04x-%04x-%012x",
+		arr[0],
+		(arr[1] >> 16) & 0xFFFF,
+		arr[1] & 0xFFFF,
+		(arr[2] >> 16) & 0xFFFF,
+		((long) (arr[2] & 0xFFFF) << 32) | ((long) arr[3] & 0xFFFFFFFFL));
 }
 
 private Icon getIconForType(TagType type) {
@@ -41,6 +113,7 @@ private Icon getIconForType(TagType type) {
 		case TAG_COMPOUND -> createColorIcon(Color.RED, "C");
 		case TAG_INT_ARRAY -> createColorIcon(Color.MAGENTA.darker(), "IA");
 		case TAG_LONG_ARRAY -> createColorIcon(Color.MAGENTA.darker().darker(), "LA");
+		case TAG_SHORT_ARRAY -> createColorIcon(Color.MAGENTA.brighter(), "SA");
 		default -> null;
 	};
 }

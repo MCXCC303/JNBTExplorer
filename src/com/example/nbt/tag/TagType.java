@@ -13,7 +13,8 @@ public enum TagType {
 	TAG_LIST(9, "LIST"),
 	TAG_COMPOUND(10, "COMPOUND"),
 	TAG_INT_ARRAY(11, "INT_ARRAY"),
-	TAG_LONG_ARRAY(12, "LONG_ARRAY");
+	TAG_LONG_ARRAY(12, "LONG_ARRAY"),
+	TAG_SHORT_ARRAY(13, "SHORT_ARRAY");
 
 private final int id;
 private final String name;

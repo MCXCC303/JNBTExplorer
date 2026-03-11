@@ -85,7 +85,7 @@ private void writeTagPayload(Tag tag) throws IOException {
 			for (Tag child : compound.getTags()) {
 				writeTagInternal(child);
 			}
-			output.writeByte(0); 
+			output.writeByte(0);
 			break;
 
 		case TAG_INT_ARRAY:
@@ -101,6 +101,14 @@ private void writeTagPayload(Tag tag) throws IOException {
 			output.writeInt(longs.length);
 			for (long value : longs) {
 				output.writeLong(value);
+			}
+			break;
+
+		case TAG_SHORT_ARRAY:
+			short[] shorts = ((TagShortArray) tag).getValue();
+			output.writeInt(shorts.length);
+			for (short value : shorts) {
+				output.writeShort(value);
 			}
 			break;
 

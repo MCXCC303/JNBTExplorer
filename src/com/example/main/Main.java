@@ -1,7 +1,6 @@
 package com.example.main;
 
 import com.example.nbt.ui.MainFrame;
-import com.example.nbt.util.Logger;
 
 import javax.swing.*;
 import javax.swing.UIManager.LookAndFeelInfo;
@@ -9,19 +8,18 @@ import java.io.File;
 
 public class Main {
 public static void main(String[] args) {
-	Logger logger = Logger.getInstance();
-	logger.info("NBT Editor starting...");
+	System.out.println("NBT Editor starting...");
 
 	try {
 		for (LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
 			if ("Nimbus".equals(info.getName())) {
 				UIManager.setLookAndFeel(info.getClassName());
-				logger.info("Set look and feel: Nimbus");
+				System.out.println("Set look and feel: Nimbus");
 				break;
 			}
 		}
 	} catch (Exception e) {
-		logger.warning("Failed to set look and feel: " + e.getMessage());
+		System.err.println("Failed to set look and feel: " + e.getMessage());
 	}
 
 	SwingUtilities.invokeLater(() -> {
@@ -32,9 +30,9 @@ public static void main(String[] args) {
 					if (file.exists()) {
 						MainFrame frame = new MainFrame(file.getAbsolutePath());
 						frame.setVisible(true);
-						logger.info("Opened file from command line: " + file.getAbsolutePath());
+						System.out.println("Opened file from command line: " + file.getAbsolutePath());
 					} else {
-						logger.warning("File not found: " + arg);
+						System.err.println("File not found: " + arg);
 
 						MainFrame frame = new MainFrame();
 						frame.setVisible(true);
@@ -43,10 +41,11 @@ public static void main(String[] args) {
 			} else {
 				MainFrame frame = new MainFrame();
 				frame.setVisible(true);
-				logger.info("Main frame created and visible");
+				System.out.println("Main frame created and visible");
 			}
 		} catch (Exception e) {
-			logger.error("Failed to create main frame", e);
+			System.err.println("Failed to create main frame: " + e.getMessage());
+			e.printStackTrace();
 			System.exit(1);
 		}
 	});
