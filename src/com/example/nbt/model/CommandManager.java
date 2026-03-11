@@ -20,7 +20,6 @@ public void executeCommand(NBTCommand command) {
 	undoStack.push(command);
 	redoStack.clear();
 
-	// Limit history size
 	if (undoStack.size() > maxHistorySize) {
 		undoStack.remove(0);
 	}

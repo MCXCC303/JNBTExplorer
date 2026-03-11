@@ -23,6 +23,10 @@ public void removeTag(String key) {
 	tags.remove(key);
 }
 
+public Tag getTag(String key) {
+	return tags.get(key);
+}
+
 public boolean hasTag(String key) {
 	return tags.containsKey(key);
 }

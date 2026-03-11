@@ -35,7 +35,7 @@ public static void main(String[] args) {
 						logger.info("Opened file from command line: " + file.getAbsolutePath());
 					} else {
 						logger.warning("File not found: " + arg);
-						// Create window with empty file
+
 						MainFrame frame = new MainFrame();
 						frame.setVisible(true);
 					}

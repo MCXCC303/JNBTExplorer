@@ -22,11 +22,16 @@ private void initUI() {
 	setSize(400, 150);
 	setLocationRelativeTo(getParent());
 
-	JPanel panel = new JPanel(new GridLayout(2, 2, 5, 5));
+	boolean hasName = tag.getName() != null && !tag.getName().isEmpty();
+	int rows = hasName ? 2 : 1;
+
+	JPanel panel = new JPanel(new GridLayout(rows, 2, 5, 5));
 	panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-	panel.add(new JLabel("Name:"));
-	panel.add(new JLabel(tag.getName()));
+	if (hasName) {
+		panel.add(new JLabel("Name:"));
+		panel.add(new JLabel(tag.getName()));
+	}
 
 	panel.add(new JLabel("Value:"));
 	valueField = new JTextField(getValueString());
@@ -61,8 +66,44 @@ private String getValueString() {
 		case TAG_FLOAT -> String.valueOf(((TagFloat) tag).getValue());
 		case TAG_DOUBLE -> String.valueOf(((TagDouble) tag).getValue());
 		case TAG_STRING -> ((TagString) tag).getValue();
+		case TAG_INT_ARRAY -> {
+			int[] arr = ((TagIntArray) tag).getValue();
+			if (arr.length == 4) {
+				yield formatUuid(arr);
+			}
+			yield "";
+		}
 		default -> "";
 	};
+}
+
+private String formatUuid(int[] arr) {
+	if (arr == null || arr.length != 4) return "";
+	return String.format("%08x-%04x-%04x-%04x-%012x", 
+		arr[0], 
+		(arr[1] >> 16) & 0xFFFF, 
+		arr[1] & 0xFFFF, 
+		(arr[2] >> 16) & 0xFFFF, 
+		((long) (arr[2] & 0xFFFF) << 32) | ((long) arr[3] & 0xFFFFFFFFL));
+}
+
+private int[] parseUuid(String value) {
+	value = value.trim().replace("-", "");
+	if (value.length() != 32) return null;
+
+	try {
+		long mostSig = Long.parseLong(value.substring(0, 16), 16);
+		long leastSig = Long.parseLong(value.substring(16, 32), 16);
+
+		int[] arr = new int[4];
+		arr[0] = (int) (mostSig >> 32);
+		arr[1] = (int) (((mostSig >> 16) & 0xFFFFL) | ((mostSig & 0xFFFFL) << 16));
+		arr[2] = (int) (((leastSig >> 48) & 0xFFFFL) | ((leastSig >> 32 & 0xFFFFL) << 16));
+		arr[3] = (int) (leastSig & 0xFFFFFFFFL);
+		return arr;
+	} catch (NumberFormatException e) {
+		return null;
+	}
 }
 
 private boolean parseValue() {
@@ -89,6 +130,19 @@ private boolean parseValue() {
 				break;
 			case TAG_STRING:
 				((TagString) tag).setValue(value);
+				break;
+			case TAG_INT_ARRAY:
+				int[] arr = ((TagIntArray) tag).getValue();
+				if (arr.length == 4) {
+					int[] parsed = parseUuid(value);
+					if (parsed == null) {
+						JOptionPane.showMessageDialog(this,
+							"Invalid UUID format. Use: 00000000-0000-0000-0000-000000000000",
+							"Error", JOptionPane.ERROR_MESSAGE);
+						return false;
+					}
+					((TagIntArray) tag).setValue(parsed);
+				}
 				break;
 		}
 		return true;

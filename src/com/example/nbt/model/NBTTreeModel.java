@@ -35,7 +35,7 @@ public void loadFile(String path, boolean compressed) throws IOException {
 	Tag rootTag = nbtFile.getRootTag();
 	if (rootTag != null) {
 		root = new NBTNode(rootTag);
-		// Set root node name to file absolute path (without marking as modified)
+
 		if (root.getTag() != null) {
 			root.getTag().setName(nbtFile.getFile().getAbsolutePath());
 		}
@@ -79,7 +79,7 @@ public void saveFileAs(String path, boolean compressed) throws IOException {
 	nbtFile = new NBTFile(path);
 	nbtFile.setRootTag(root.getTag());
 	nbtFile.save(compressed);
-	// Update root node name to new file absolute path (without marking as modified)
+
 	if (root.getTag() != null) {
 		root.getTag().setName(nbtFile.getFile().getAbsolutePath());
 	}

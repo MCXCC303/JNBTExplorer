@@ -85,7 +85,7 @@ private void writeTagPayload(Tag tag) throws IOException {
 			for (Tag child : compound.getTags()) {
 				writeTagInternal(child);
 			}
-			output.writeByte(0); // TAG_END
+			output.writeByte(0); 
 			break;
 
 		case TAG_INT_ARRAY:

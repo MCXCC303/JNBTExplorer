@@ -6,6 +6,7 @@ import com.example.nbt.util.Logger;
 
 import javax.swing.*;
 import javax.swing.tree.TreePath;
+import javax.swing.tree.TreeSelectionModel;
 import java.awt.*;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
@@ -14,6 +15,7 @@ import java.awt.dnd.*;
 import java.awt.event.*;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class MainFrame extends JFrame implements DropTargetListener {
@@ -24,7 +26,24 @@ private File currentFile;
 private final Logger logger;
 private JButton pasteButton;
 private JMenuItem pasteMenuItem;
+private JMenuItem popupPasteItem;
+private JMenuItem blankPasteItem;
+private JMenu expandMenu;
+private JMenu collapseMenu;
+private JMenuItem expandItem;
+private JMenuItem expandAllItem;
+private JMenuItem collapseItem;
+private JMenuItem collapseAllItem;
 private final CommandManager commandManager;
+private SortMode typeSortMode = SortMode.TYPE_DESC;
+private SortMode nameSortMode = SortMode.NAME_ASC;
+private JPopupMenu popupMenu;
+private JPopupMenu blankPopupMenu;
+private JMenuItem addItem;
+private JMenuItem editItem;
+private JMenuItem deleteItem;
+private JSeparator separator1;
+private JSeparator separator2;
 
 public MainFrame() {
 	this(null);
@@ -43,15 +62,15 @@ public MainFrame(String filePath) {
 	initUI();
 	initMenu();
 	initToolbar();
+	initPopupMenu();
 
-	// Add drag and drop support
 	new DropTarget(this, this);
 	logger.info("Drag and drop support initialized");
 
 	treeModel = new NBTTreeModel();
 
 	if (filePath != null) {
-		// Open file from command line
+
 		try {
 			treeModel.loadFile(filePath);
 			currentFile = new File(filePath);
@@ -85,10 +104,10 @@ public MainFrame(String filePath) {
 private void initUI() {
 	setLayout(new BorderLayout());
 
-	// Tree
 	tree = new JTree();
 	tree.setCellRenderer(new NBTTreeCellRenderer());
 	tree.setEditable(false);
+	tree.getSelectionModel().setSelectionMode(TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION);
 
 	tree.addTreeWillExpandListener(new javax.swing.event.TreeWillExpandListener() {
 		@Override
@@ -112,58 +131,72 @@ private void initUI() {
 				editSelectedNode();
 			}
 		}
+
+		@Override
+		public void mousePressed(MouseEvent e) {
+			showPopupMenu(e);
+		}
+
+		@Override
+		public void mouseReleased(MouseEvent e) {
+			showPopupMenu(e);
+		}
 	});
 
 	DragSource dragSource = DragSource.getDefaultDragSource();
 	dragSource.createDefaultDragGestureRecognizer(tree,
 		DnDConstants.ACTION_COPY,
 		dge -> {
-			TreePath path = tree.getSelectionPath();
-			if (path != null) {
-				NBTNode node = (NBTNode) path.getLastPathComponent();
-				Tag tag = node.getTag();
-				if (tag != null) {
-					try {
-						Transferable transferable = new TagTransferable(tag);
-						dge.startDrag(DragSource.DefaultCopyDrop, transferable, new DragSourceListener() {
-							@Override
-							public void dragEnter(DragSourceDragEvent dsde) {
-							}
+			TreePath[] paths = tree.getSelectionPaths();
+				if (paths != null && paths.length > 0) {
+					List<Tag> tags = new ArrayList<>();
+					for (TreePath path : paths) {
+						NBTNode node = (NBTNode) path.getLastPathComponent();
+						Tag tag = node.getTag();
+						if (tag != null) {
+							tags.add(tag);
+						}
+					}
+					if (!tags.isEmpty()) {
+						try {
+							Transferable transferable = new TagTransferable(tags);
+							dge.startDrag(DragSource.DefaultCopyDrop, transferable, new DragSourceListener() {
+								@Override
+								public void dragEnter(DragSourceDragEvent dsde) {
+								}
 
-							@Override
-							public void dragOver(DragSourceDragEvent dsde) {
-							}
+								@Override
+								public void dragOver(DragSourceDragEvent dsde) {
+								}
 
-							@Override
-							public void dropActionChanged(DragSourceDragEvent dsde) {
-							}
+								@Override
+								public void dropActionChanged(DragSourceDragEvent dsde) {
+								}
 
-							@Override
-							public void dragExit(DragSourceEvent dse) {
-							}
+								@Override
+								public void dragExit(DragSourceEvent dse) {
+								}
 
-							@Override
-							public void dragDropEnd(DragSourceDropEvent dsde) {
-								logger.info("Drag ended, success: " + dsde.getDropSuccess());
-							}
-						});
-						logger.info("Started dragging tag: " + tag.getName());
-					} catch (Exception e) {
-						logger.error("Error starting drag", e);
+								@Override
+								public void dragDropEnd(DragSourceDropEvent dsde) {
+									logger.info("Drag ended, success: " + dsde.getDropSuccess());
+								}
+							});
+							logger.info("Started dragging " + tags.size() + " tags");
+						} catch (Exception e) {
+							logger.error("Error starting drag", e);
+						}
 					}
 				}
-			}
 		});
 
 	registerKeyboardActions();
 
-	// Initialize paste button state
 	updatePasteButtonState();
 
 	JScrollPane treeScroll = new JScrollPane(tree);
 	add(treeScroll, BorderLayout.CENTER);
 
-	// Status bar
 	statusLabel = new JLabel("Ready");
 	statusLabel.setBorder(BorderFactory.createEtchedBorder());
 	add(statusLabel, BorderLayout.SOUTH);
@@ -172,7 +205,6 @@ private void initUI() {
 private void initMenu() {
 	JMenuBar menuBar = new JMenuBar();
 
-	// File menu
 	JMenu fileMenu = new JMenu("File");
 	fileMenu.setMnemonic(KeyEvent.VK_F);
 
@@ -207,7 +239,6 @@ private void initMenu() {
 	fileMenu.addSeparator();
 	fileMenu.add(exitItem);
 
-	// Edit menu
 	JMenu editMenu = new JMenu("Edit");
 	editMenu.setMnemonic(KeyEvent.VK_E);
 
@@ -219,8 +250,6 @@ private void initMenu() {
 
 	JMenuItem deleteItem = new JMenuItem("Delete Tag");
 	deleteItem.addActionListener(e -> deleteSelectedNode());
-
-	editMenu.addSeparator();
 
 	JMenuItem copyItem = new JMenuItem("Copy");
 	copyItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, InputEvent.CTRL_DOWN_MASK));
@@ -253,10 +282,175 @@ private void initMenu() {
 	editMenu.add(undoItem);
 	editMenu.add(redoItem);
 
+	JMenu viewMenu = new JMenu("View");
+	viewMenu.setMnemonic(KeyEvent.VK_V);
+
+	JMenuItem viewExpandItem = new JMenuItem("Expand");
+	viewExpandItem.addActionListener(e -> expandSelectedNode());
+
+	JMenuItem viewCollapseItem = new JMenuItem("Collapse");
+	viewCollapseItem.addActionListener(e -> collapseSelectedNode());
+
+	JMenuItem viewExpandAllItem = new JMenuItem("Expand All");
+	viewExpandAllItem.addActionListener(e -> expandAll());
+
+	JMenuItem viewCollapseAllItem = new JMenuItem("Collapse All");
+	viewCollapseAllItem.addActionListener(e -> collapseAll());
+
+	viewMenu.add(viewExpandItem);
+	viewMenu.add(viewCollapseItem);
+	viewMenu.addSeparator();
+	viewMenu.add(viewExpandAllItem);
+	viewMenu.add(viewCollapseAllItem);
+	viewMenu.addSeparator();
+
+	JMenu sortMenu = new JMenu("Sort By");
+
+	JMenu typeSortMenu = new JMenu("Type");
+	ButtonGroup typeSortGroup = new ButtonGroup();
+
+	JRadioButtonMenuItem typeDescItem = new JRadioButtonMenuItem(SortMode.TYPE_DESC.getDisplayName());
+	typeDescItem.setSelected(true);
+	typeDescItem.addActionListener(e -> {
+		typeSortMode = SortMode.TYPE_DESC;
+		NBTNode.setTypeSortMode(typeSortMode);
+		refreshTree();
+	});
+	typeSortGroup.add(typeDescItem);
+
+	JRadioButtonMenuItem typeAscItem = new JRadioButtonMenuItem(SortMode.TYPE_ASC.getDisplayName());
+	typeAscItem.addActionListener(e -> {
+		typeSortMode = SortMode.TYPE_ASC;
+		NBTNode.setTypeSortMode(typeSortMode);
+		refreshTree();
+	});
+	typeSortGroup.add(typeAscItem);
+
+	JRadioButtonMenuItem typeNoneItem = new JRadioButtonMenuItem("None");
+	typeNoneItem.addActionListener(e -> {
+		typeSortMode = SortMode.NONE;
+		NBTNode.setTypeSortMode(typeSortMode);
+		refreshTree();
+	});
+	typeSortGroup.add(typeNoneItem);
+
+	typeSortMenu.add(typeDescItem);
+	typeSortMenu.add(typeAscItem);
+	typeSortMenu.add(typeNoneItem);
+
+	JMenu nameSortMenu = new JMenu("Name");
+	ButtonGroup nameSortGroup = new ButtonGroup();
+
+	JRadioButtonMenuItem nameAscItem = new JRadioButtonMenuItem(SortMode.NAME_ASC.getDisplayName());
+	nameAscItem.setSelected(true);
+	nameAscItem.addActionListener(e -> {
+		nameSortMode = SortMode.NAME_ASC;
+		NBTNode.setNameSortMode(nameSortMode);
+		refreshTree();
+	});
+	nameSortGroup.add(nameAscItem);
+
+	JRadioButtonMenuItem nameDescItem = new JRadioButtonMenuItem(SortMode.NAME_DESC.getDisplayName());
+	nameDescItem.addActionListener(e -> {
+		nameSortMode = SortMode.NAME_DESC;
+		NBTNode.setNameSortMode(nameSortMode);
+		refreshTree();
+	});
+	nameSortGroup.add(nameDescItem);
+
+	JRadioButtonMenuItem nameNoneItem = new JRadioButtonMenuItem("None");
+	nameNoneItem.addActionListener(e -> {
+		nameSortMode = SortMode.NONE;
+		NBTNode.setNameSortMode(nameSortMode);
+		refreshTree();
+	});
+	nameSortGroup.add(nameNoneItem);
+
+	nameSortMenu.add(nameAscItem);
+	nameSortMenu.add(nameDescItem);
+	nameSortMenu.add(nameNoneItem);
+
+	sortMenu.add(typeSortMenu);
+	sortMenu.add(nameSortMenu);
+	viewMenu.add(sortMenu);
+
 	menuBar.add(fileMenu);
 	menuBar.add(editMenu);
+	menuBar.add(viewMenu);
+
+	JMenu helpMenu = new JMenu("Help");
+	helpMenu.setMnemonic(KeyEvent.VK_H);
+
+	JMenuItem aboutItem = new JMenuItem("About");
+	aboutItem.addActionListener(e -> showAboutDialog());
+	helpMenu.add(aboutItem);
+
+	menuBar.add(helpMenu);
 
 	setJMenuBar(menuBar);
+}
+
+private void initPopupMenu() {
+	popupMenu = new JPopupMenu();
+
+	addItem = new JMenuItem("Add Tag...");
+	addItem.addActionListener(e -> addTag());
+
+	editItem = new JMenuItem("Edit Tag...");
+	editItem.addActionListener(e -> editSelectedNode());
+
+	deleteItem = new JMenuItem("Delete Tag");
+	deleteItem.addActionListener(e -> deleteSelectedNode());
+
+	expandMenu = new JMenu("Expand");
+	expandItem = new JMenuItem("Expand");
+	expandItem.addActionListener(e -> expandSelectedNode());
+	expandAllItem = new JMenuItem("Expand All");
+	expandAllItem.addActionListener(e -> expandAll());
+	expandMenu.add(expandItem);
+	expandMenu.add(expandAllItem);
+
+	collapseMenu = new JMenu("Collapse");
+	collapseItem = new JMenuItem("Collapse");
+	collapseItem.addActionListener(e -> collapseSelectedNode());
+	collapseAllItem = new JMenuItem("Collapse All");
+	collapseAllItem.addActionListener(e -> collapseAll());
+	collapseMenu.add(collapseItem);
+	collapseMenu.add(collapseAllItem);
+
+	JMenuItem copyItem = new JMenuItem("Copy");
+	copyItem.addActionListener(e -> copySelectedNode());
+
+	popupPasteItem = new JMenuItem("Paste");
+	popupPasteItem.addActionListener(e -> pasteTag());
+
+	JMenuItem cutItem = new JMenuItem("Cut");
+	cutItem.addActionListener(e -> cutSelectedNode());
+
+	popupMenu.add(addItem);
+	popupMenu.add(editItem);
+	popupMenu.add(deleteItem);
+	separator1 = new JSeparator();
+	popupMenu.add(separator1);
+	popupMenu.add(expandMenu);
+	popupMenu.add(collapseMenu);
+	separator2 = new JSeparator();
+	popupMenu.add(separator2);
+	popupMenu.add(cutItem);
+	popupMenu.add(copyItem);
+	popupMenu.add(popupPasteItem);
+
+	blankPopupMenu = new JPopupMenu();
+
+	JMenuItem blankAddItem = new JMenuItem("Add Tag...");
+	blankAddItem.addActionListener(e -> addTag());
+
+	blankPasteItem = new JMenuItem("Paste");
+	blankPasteItem.addActionListener(e -> pasteTag());
+
+	blankPopupMenu.add(blankAddItem);
+	blankPopupMenu.addSeparator();
+	blankPopupMenu.add(blankPasteItem);
 }
 
 private void initToolbar() {
@@ -315,7 +509,7 @@ private void newFile() {
 	if (checkSave()) {
 		treeModel.newFile();
 		currentFile = null;
-		// Clear command history when creating a new file
+
 		commandManager.clear();
 		updateTitle();
 		statusLabel.setText("New file created");
@@ -342,7 +536,7 @@ private void openFile() {
 			logger.info("Loading file: " + file.getAbsolutePath());
 			treeModel.loadFile(file.getAbsolutePath());
 			currentFile = file;
-			// Clear command history when opening a new file
+
 			commandManager.clear();
 			updateTitle();
 			statusLabel.setText("Opened: " + file.getName());
@@ -438,9 +632,23 @@ private void openNewWindow() {
 	});
 }
 
+private void showAboutDialog() {
+	logger.info("Showing About dialog");
+	About aboutDialog = new About(this);
+	aboutDialog.setVisible(true);
+	logger.info("About dialog closed");
+}
+
 private void registerKeyboardActions() {
-	tree.getInputMap(JComponent.WHEN_FOCUSED);
+	InputMap inputMap = tree.getInputMap(JComponent.WHEN_FOCUSED);
 	ActionMap actionMap = tree.getActionMap();
+
+	inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_C, InputEvent.CTRL_DOWN_MASK), "copy");
+	inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_V, InputEvent.CTRL_DOWN_MASK), "paste");
+	inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_X, InputEvent.CTRL_DOWN_MASK), "cut");
+	inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK), "undo");
+	inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_Y, InputEvent.CTRL_DOWN_MASK), "redo");
+	inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "delete");
 
 	actionMap.put("copy", new AbstractAction() {
 		@Override
@@ -476,6 +684,13 @@ private void registerKeyboardActions() {
 			redo();
 		}
 	});
+
+	actionMap.put("delete", new AbstractAction() {
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			deleteSelectedNode();
+		}
+	});
 }
 
 private void updatePasteButtonState() {
@@ -486,25 +701,67 @@ private void updatePasteButtonState() {
 	if (pasteMenuItem != null) {
 		pasteMenuItem.setEnabled(hasTag);
 	}
+	if (popupPasteItem != null) {
+		popupPasteItem.setEnabled(hasTag);
+	}
+	if (blankPasteItem != null) {
+		blankPasteItem.setEnabled(hasTag);
+	}
 }
 
-private record TagTransferable(Tag tag) implements Transferable {
-	public static final DataFlavor TAG_FLAVOR = new DataFlavor(Tag.class, "NBT Tag");
+private void showPopupMenu(MouseEvent e) {
+	if (e.isPopupTrigger()) {
+		TreePath path = tree.getPathForLocation(e.getX(), e.getY());
+		if (path != null) {
+			if (!tree.isPathSelected(path)) {
+				tree.setSelectionPath(path);
+			}
+			TreePath[] selectedPaths = tree.getSelectionPaths();
+			boolean isMultiSelect = selectedPaths != null && selectedPaths.length > 1;
+
+			addItem.setVisible(!isMultiSelect);
+			editItem.setVisible(!isMultiSelect);
+			deleteItem.setVisible(!isMultiSelect);
+			separator1.setVisible(!isMultiSelect);
+			separator2.setVisible(!isMultiSelect);
+
+			if (selectedPaths != null && selectedPaths.length > 0) {
+				NBTNode firstNode = (NBTNode) selectedPaths[0].getLastPathComponent();
+				boolean isContainer = firstNode.isContainer();
+
+				expandMenu.setVisible(isContainer);
+				collapseMenu.setVisible(isContainer);
+
+				if (!isContainer) {
+					separator2.setVisible(false);
+				}
+			}
+
+			popupMenu.show(tree, e.getX(), e.getY());
+		} else {
+			tree.clearSelection();
+			blankPopupMenu.show(tree, e.getX(), e.getY());
+		}
+	}
+}
+
+private record TagTransferable(List<Tag> tags) implements Transferable {
+	public static final DataFlavor TAG_LIST_FLAVOR = new DataFlavor(List.class, "NBT Tag List");
 
 	@Override
 	public DataFlavor[] getTransferDataFlavors() {
-		return new DataFlavor[]{TAG_FLAVOR};
+		return new DataFlavor[]{TAG_LIST_FLAVOR};
 	}
 
 	@Override
 	public boolean isDataFlavorSupported(DataFlavor flavor) {
-		return flavor.equals(TAG_FLAVOR);
+		return flavor.equals(TAG_LIST_FLAVOR);
 	}
 
 	@Override
 	public Object getTransferData(DataFlavor flavor) throws UnsupportedFlavorException {
-		if (flavor.equals(TAG_FLAVOR)) {
-			return tag;
+		if (flavor.equals(TAG_LIST_FLAVOR)) {
+			return tags;
 		}
 		throw new UnsupportedFlavorException(flavor);
 	}
@@ -521,8 +778,11 @@ private void addTag() {
 		JOptionPane.showMessageDialog(this,
 			"Can only add tags to compound or list tags",
 			"Error", JOptionPane.ERROR_MESSAGE);
+		logger.warning("Add tag failed: parent is not a container");
 		return;
 	}
+
+	logger.info("Adding new tag to parent: " + parent.getName());
 
 	CreateTagDialog dialog = new CreateTagDialog(this);
 	dialog.setVisible(true);
@@ -530,7 +790,7 @@ private void addTag() {
 	if (dialog.isConfirmed()) {
 		Tag newTag = dialog.getNewTag();
 		if (newTag != null) {
-			// Create and execute command
+
 			NBTCommand command;
 			if (parent.getTag() instanceof TagCompound) {
 				command = new AddTagCommand((TagCompound) parent.getTag(), newTag);
@@ -542,7 +802,12 @@ private void addTag() {
 			parent.loadChildren();
 			treeModel.fireTreeStructureChanged(path);
 			statusLabel.setText("Added tag: " + newTag.getName());
+			logger.info("Added tag: " + newTag.getName() + " (type: " + newTag.getType() + ") to parent: " + parent.getName());
+		} else {
+			logger.info("Add tag cancelled: no tag created");
 		}
+	} else {
+		logger.info("Add tag operation cancelled");
 	}
 }
 
@@ -556,7 +821,7 @@ private void editSelectedNode() {
 	Tag tag = node.getTag();
 
 	if (tag instanceof TagCompound || tag instanceof TagList) {
-		// For containers, just expand/collapse
+
 		if (tree.isExpanded(path)) {
 			tree.collapsePath(path);
 			logger.info("Collapsed container tag: " + tag.getName());
@@ -567,7 +832,6 @@ private void editSelectedNode() {
 		return;
 	}
 
-	// Store old value for undo
 	Object oldValue = getTagValue(tag);
 	logger.info("Editing tag: " + tag.getName() + " (old value: " + oldValue + ")");
 
@@ -577,7 +841,6 @@ private void editSelectedNode() {
 	if (dialog.isConfirmed()) {
 		Object newValue = getTagValue(tag);
 
-		// Create and execute edit command
 		NBTCommand command = new EditTagCommand(tag, oldValue, newValue);
 		commandManager.executeCommand(command);
 
@@ -611,18 +874,30 @@ private Object getTagValue(Tag tag) {
 }
 
 private void copySelectedNode() {
-	TreePath path = tree.getSelectionPath();
-	if (path == null) {
+	TreePath[] paths = tree.getSelectionPaths();
+	if (paths == null || paths.length == 0) {
 		return;
 	}
 
-	NBTNode node = (NBTNode) path.getLastPathComponent();
-	Tag tag = node.getTag();
+	List<Tag> tagsToCopy = new ArrayList<>();
+	for (TreePath path : paths) {
+		NBTNode node = (NBTNode) path.getLastPathComponent();
+		Tag tag = node.getTag();
+		if (tag != null) {
+			tagsToCopy.add(tag);
+		}
+	}
 
-	if (tag != null) {
-		NBTClipboard.getInstance().copyTag(tag);
-		statusLabel.setText("Copied tag: " + tag.getName());
-		logger.info("Copied tag: " + tag.getName() + " (type: " + tag.getType() + ")");
+	if (!tagsToCopy.isEmpty()) {
+		if (tagsToCopy.size() == 1) {
+			NBTClipboard.getInstance().copyTag(tagsToCopy.get(0));
+			statusLabel.setText("Copied tag: " + tagsToCopy.get(0).getName());
+			logger.info("Copied tag: " + tagsToCopy.get(0).getName() + " (type: " + tagsToCopy.get(0).getType() + ")");
+		} else {
+			NBTClipboard.getInstance().copyTags(tagsToCopy);
+			statusLabel.setText("Copied " + tagsToCopy.size() + " tags");
+			logger.info("Copied " + tagsToCopy.size() + " tags");
+		}
 		updatePasteButtonState();
 	}
 }
@@ -639,10 +914,8 @@ private void cutSelectedNode() {
 
 	logger.info("Cutting tag: " + tag.getName() + " (type: " + tag.getType() + ")");
 
-	// Copy to clipboard first
 	NBTClipboard.getInstance().copyTag(tag);
 
-	// Create and execute delete command
 	NBTCommand command;
 	if (parent.getTag() instanceof TagCompound) {
 		command = new DeleteTagCommand((TagCompound) parent.getTag(), tag);
@@ -671,7 +944,7 @@ private void undo() {
 	String description = commandManager.getUndoDescription();
 	commandManager.undo();
 	refreshTree();
-	// Update modified state based on whether we're back at the saved state
+
 	if (commandManager.isModified()) {
 		markAsModified();
 	} else {
@@ -714,7 +987,7 @@ private void redo() {
 	String description = commandManager.getRedoDescription();
 	commandManager.redo();
 	refreshTree();
-	// Update modified state based on whether we're back at the saved state
+
 	if (commandManager.isModified()) {
 		markAsModified();
 	} else {
@@ -744,6 +1017,7 @@ private void pasteTag() {
 		JOptionPane.showMessageDialog(this,
 			"Can only paste tags to compound or list tags",
 			"Error", JOptionPane.ERROR_MESSAGE);
+		logger.warning("Paste failed: parent is not a container");
 		return;
 	}
 
@@ -751,65 +1025,188 @@ private void pasteTag() {
 		JOptionPane.showMessageDialog(this,
 			"Clipboard is empty",
 			"Error", JOptionPane.ERROR_MESSAGE);
+		logger.warning("Paste failed: clipboard is empty");
 		return;
 	}
 
-	Tag copiedTag = NBTClipboard.getInstance().getCopiedTag();
-	if (copiedTag != null) {
-		// Create copy of the tag
+	List<Tag> copiedTags = NBTClipboard.getInstance().getCopiedTags();
+	if (copiedTags == null || copiedTags.isEmpty()) {
+		logger.warning("Paste failed: no tags in clipboard");
+		return;
+	}
+
+	logger.info("Pasting " + copiedTags.size() + " tag(s) to parent: " + parent.getName());
+
+	CompositeCommand compositeCommand = new CompositeCommand("Paste " + copiedTags.size() + " tags");
+
+	for (Tag copiedTag : copiedTags) {
 		Tag newTag = copiedTag.copy();
 
-		// Ensure unique name
-		String originalName = newTag.getName();
-		String newName = originalName;
-		int counter = 1;
-		while (true) {
-			boolean nameExists = false;
-			if (parent.getTag() instanceof TagCompound compound) {
-				nameExists = compound.hasTag(newName);
-			}
-			if (!nameExists) {
-				break;
-			}
-			newName = originalName + "_" + counter;
-			counter++;
-		}
-		newTag.setName(newName);
+		String tagName = newTag.getName();
 
-		// Create and execute add command
 		NBTCommand command;
 		if (parent.getTag() instanceof TagCompound) {
-			command = new AddTagCommand((TagCompound) parent.getTag(), newTag);
-		} else {
-			command = new AddTagCommand((TagList) parent.getTag(), newTag);
-		}
-		commandManager.executeCommand(command);
 
-		// Add to parent node
-		parent.addChildTag(newTag);
-		parent.loadChildren();
-		treeModel.fireTreeStructureChanged(path);
-		statusLabel.setText("Pasted tag: " + newName);
-		updatePasteButtonState();
+			newTag.setName(tagName);
+			command = new AddTagCommand((TagCompound) parent.getTag(), newTag);
+			logger.info("Pasting tag: " + tagName + " (type: " + newTag.getType() + ") to TagCompound");
+		} else {
+
+			String originalName = tagName;
+			String newName = originalName;
+			int counter = 1;
+			while (true) {
+				boolean nameExists = false;
+
+				if (parent.getTag() instanceof TagCompound compound) {
+					nameExists = compound.hasTag(newName);
+				}
+				if (!nameExists) {
+					break;
+				}
+				newName = originalName + "_" + counter;
+				counter++;
+			}
+			newTag.setName(newName);
+			command = new AddTagCommand((TagList) parent.getTag(), newTag);
+			logger.info("Pasting tag: " + newName + " (type: " + newTag.getType() + ") to TagList");
+		}
+		compositeCommand.addCommand(command);
+	}
+
+	commandManager.executeCommand(compositeCommand);
+
+	parent.setModified(true);
+	parent.loadChildren();
+	treeModel.fireTreeStructureChanged(path);
+
+	if (copiedTags.size() == 1) {
+		statusLabel.setText("Pasted tag: " + copiedTags.get(0).getName());
+		logger.info("Successfully pasted 1 tag: " + copiedTags.get(0).getName());
+	} else {
+		statusLabel.setText("Pasted " + copiedTags.size() + " tags");
+		logger.info("Successfully pasted " + copiedTags.size() + " tags");
+	}
+	updatePasteButtonState();
+}
+
+private void expandSelectedNode() {
+	TreePath path = tree.getSelectionPath();
+	if (path != null) {
+		tree.expandPath(path);
+		logger.info("Expanded node: " + ((NBTNode) path.getLastPathComponent()).getName());
 	}
 }
 
-private void deleteSelectedNode() {
+private void collapseSelectedNode() {
 	TreePath path = tree.getSelectionPath();
-	if (path == null || path.getParentPath() == null) {
+	if (path != null) {
+		tree.collapsePath(path);
+		logger.info("Collapsed node: " + ((NBTNode) path.getLastPathComponent()).getName());
+	}
+}
+
+private void expandAll() {
+	TreePath path = tree.getSelectionPath();
+	if (path != null) {
+
+		expandRecursively(path);
+		logger.info("Expanded all children of node: " + ((NBTNode) path.getLastPathComponent()).getName());
+	} else {
+
+		for (int i = 0; i < tree.getRowCount(); i++) {
+			tree.expandRow(i);
+		}
+		logger.info("Expanded all nodes");
+	}
+}
+
+private void collapseAll() {
+	TreePath path = tree.getSelectionPath();
+	if (path != null) {
+
+		collapseRecursively(path);
+		logger.info("Collapsed all children of node: " + ((NBTNode) path.getLastPathComponent()).getName());
+	} else {
+
+		for (int i = tree.getRowCount() - 1; i >= 0; i--) {
+			tree.collapseRow(i);
+		}
+		logger.info("Collapsed all nodes");
+	}
+}
+
+private void expandRecursively(TreePath path) {
+	tree.expandPath(path);
+	Object node = path.getLastPathComponent();
+	int childCount = tree.getModel().getChildCount(node);
+	for (int i = 0; i < childCount; i++) {
+		Object child = tree.getModel().getChild(node, i);
+		TreePath childPath = path.pathByAddingChild(child);
+		expandRecursively(childPath);
+	}
+}
+
+private void collapseRecursively(TreePath path) {
+	Object node = path.getLastPathComponent();
+	int childCount = tree.getModel().getChildCount(node);
+	for (int i = 0; i < childCount; i++) {
+		Object child = tree.getModel().getChild(node, i);
+		TreePath childPath = path.pathByAddingChild(child);
+		collapseRecursively(childPath);
+	}
+	tree.collapsePath(path);
+}
+
+private void deleteSelectedNode() {
+	TreePath[] paths = tree.getSelectionPaths();
+	if (paths == null || paths.length == 0) {
+		logger.info("Delete selected node: no nodes selected");
 		return;
 	}
 
-	NBTNode node = (NBTNode) path.getLastPathComponent();
-	NBTNode parent = (NBTNode) path.getParentPath().getLastPathComponent();
+	for (TreePath path : paths) {
+		if (path.getParentPath() == null) {
+			JOptionPane.showMessageDialog(this,
+				"Cannot delete root node",
+				"Error", JOptionPane.ERROR_MESSAGE);
+			logger.warning("Delete failed: cannot delete root node");
+			return;
+		}
+	}
+
+	int count = paths.length;
+	String message;
+	if (count == 1) {
+		NBTNode node = (NBTNode) paths[0].getLastPathComponent();
+		String nodeName = node.getName();
+		if (nodeName == null || nodeName.isEmpty()) {
+			message = "Are you sure you want to delete this element?";
+		} else {
+			message = "Are you sure you want to delete '" + nodeName + "'?";
+		}
+	} else {
+		message = "Are you sure you want to delete " + count + " selected tag(s)?";
+	}
+
+	logger.info("Delete confirmation requested for " + count + " tag(s)");
 
 	int result = JOptionPane.showConfirmDialog(this,
-		"Are you sure you want to delete '" + node.getName() + "'?",
+		message,
 		"Confirm Delete",
 		JOptionPane.YES_NO_OPTION);
 
-	if (result == JOptionPane.YES_OPTION) {
-		// Create and execute delete command
+	if (result != JOptionPane.YES_OPTION) {
+		logger.info("Delete operation cancelled by user");
+		return;
+	}
+
+	CompositeCommand compositeCommand = new CompositeCommand("Delete " + count + " tag(s)");
+
+	for (TreePath path : paths) {
+		NBTNode node = (NBTNode) path.getLastPathComponent();
+		NBTNode parent = (NBTNode) path.getParentPath().getLastPathComponent();
+
 		NBTCommand command;
 		if (parent.getTag() instanceof TagCompound) {
 			command = new DeleteTagCommand((TagCompound) parent.getTag(), node.getTag());
@@ -817,13 +1214,22 @@ private void deleteSelectedNode() {
 			int index = parent.getIndex(node);
 			command = new DeleteTagCommand((TagList) parent.getTag(), node.getTag(), index);
 		}
-		commandManager.executeCommand(command);
+		compositeCommand.addCommand(command);
 
 		parent.removeChildTag(node);
-		treeModel.fireTreeStructureChanged(path.getParentPath());
-		updateTitle();
-		statusLabel.setText("Deleted tag: " + node.getName());
+		logger.info("Deleted tag: " + node.getName() + " (type: " + node.getTag().getType() + ") from parent: " + parent.getName());
 	}
+
+	if (!compositeCommand.isEmpty()) {
+		commandManager.executeCommand(compositeCommand);
+		logger.info("Executed delete command for " + count + " tag(s)");
+	}
+
+	TreePath rootPath = new TreePath(treeModel.getRoot());
+	treeModel.fireTreeStructureChanged(rootPath);
+	updateTitle();
+	statusLabel.setText("Deleted " + count + " tag(s)");
+	logger.info("Successfully deleted " + count + " tag(s)");
 }
 
 private void updateTitle() {
@@ -882,8 +1288,10 @@ public void drop(DropTargetDropEvent dtde) {
 
 private boolean isTagFlavorSupported(DropTargetDragEvent dtde) {
 	for (DataFlavor flavor : dtde.getCurrentDataFlavors()) {
-		if (flavor.getRepresentationClass() != null &&
-			Tag.class.isAssignableFrom(flavor.getRepresentationClass())) {
+		if ((flavor.getRepresentationClass() != null &&
+			Tag.class.isAssignableFrom(flavor.getRepresentationClass())) ||
+			(flavor.getRepresentationClass() != null &&
+			List.class.isAssignableFrom(flavor.getRepresentationClass()))) {
 			return true;
 		}
 	}
@@ -892,8 +1300,10 @@ private boolean isTagFlavorSupported(DropTargetDragEvent dtde) {
 
 private boolean isTagFlavorSupportedDrop(DropTargetDropEvent dtde) {
 	for (DataFlavor flavor : dtde.getCurrentDataFlavors()) {
-		if (flavor.getRepresentationClass() != null &&
-			Tag.class.isAssignableFrom(flavor.getRepresentationClass())) {
+		if ((flavor.getRepresentationClass() != null &&
+			Tag.class.isAssignableFrom(flavor.getRepresentationClass())) ||
+			(flavor.getRepresentationClass() != null &&
+			List.class.isAssignableFrom(flavor.getRepresentationClass()))) {
 			return true;
 		}
 	}
@@ -916,7 +1326,7 @@ private void handleFileDrop(DropTargetDropEvent dtde) {
 					try {
 						treeModel.loadFile(file.getAbsolutePath());
 						currentFile = file;
-						// Clear command history when opening a file via drag and drop
+
 						commandManager.clear();
 						updateTitle();
 						statusLabel.setText("Opened: " + file.getName());
@@ -943,17 +1353,24 @@ private void handleFileDrop(DropTargetDropEvent dtde) {
 
 private void handleTagDrop(DropTargetDropEvent dtde) {
 	try {
-		DataFlavor tagFlavor = null;
+		Object data = null;
+		boolean isTagList = false;
+
 		for (DataFlavor flavor : dtde.getCurrentDataFlavors()) {
 			if (flavor.getRepresentationClass() != null &&
+				List.class.isAssignableFrom(flavor.getRepresentationClass())) {
+				data = dtde.getTransferable().getTransferData(flavor);
+				isTagList = true;
+				break;
+			} else if (flavor.getRepresentationClass() != null &&
 				Tag.class.isAssignableFrom(flavor.getRepresentationClass())) {
-				tagFlavor = flavor;
+				data = dtde.getTransferable().getTransferData(flavor);
+				isTagList = false;
 				break;
 			}
 		}
 
-		if (tagFlavor != null) {
-			Tag tag = (Tag) dtde.getTransferable().getTransferData(tagFlavor);
+		if (data != null) {
 			Point location = dtde.getLocation();
 			TreePath path = tree.getPathForLocation(location.x, location.y);
 			if (path == null) {
@@ -968,42 +1385,93 @@ private void handleTagDrop(DropTargetDropEvent dtde) {
 				}
 			}
 
-			// Check if tag with same name already exists
-			boolean nameExists = false;
-			if (parent.getTag() instanceof TagCompound compound) {
-				nameExists = compound.hasTag(tag.getName());
-			}
+			if (isTagList) {
+				@SuppressWarnings("unchecked")
+				List<Tag> tags = (List<Tag>) data;
+				if (!tags.isEmpty()) {
+					boolean allNamesUnique = true;
+					if (parent.getTag() instanceof TagCompound compound) {
+						for (Tag tag : tags) {
+							if (compound.hasTag(tag.getName())) {
+								allNamesUnique = false;
+								break;
+							}
+						}
+					}
 
-			if (nameExists) {
-				dtde.rejectDrop();
-				dtde.dropComplete(false);
-				statusLabel.setText("Cannot drop: tag with same name already exists");
-				logger.info("Drop rejected: tag with same name already exists");
-				return;
-			}
+					if (allNamesUnique) {
+						dtde.acceptDrop(DnDConstants.ACTION_COPY);
 
-			dtde.acceptDrop(DnDConstants.ACTION_COPY);
+						CompositeCommand compositeCommand = new CompositeCommand("Drop " + tags.size() + " tags");
 
-			Tag newTag = tag.copy();
-			newTag.setName(tag.getName());
-			NBTCommand command;
-			if (parent.getTag() instanceof TagCompound) {
-				command = new AddTagCommand((TagCompound) parent.getTag(), newTag);
+						for (Tag tag : tags) {
+							Tag newTag = tag.copy();
+							newTag.setName(tag.getName());
+							NBTCommand command;
+							if (parent.getTag() instanceof TagCompound) {
+								command = new AddTagCommand((TagCompound) parent.getTag(), newTag);
+							} else {
+								command = new AddTagCommand((TagList) parent.getTag(), newTag);
+							}
+							compositeCommand.addCommand(command);
+							parent.addChildTag(newTag);
+						}
+
+						commandManager.executeCommand(compositeCommand);
+						parent.loadChildren();
+						treeModel.fireTreeStructureChanged(path);
+						statusLabel.setText("Dropped " + tags.size() + " tags");
+						logger.info("Dropped " + tags.size() + " tags");
+					} else {
+						dtde.rejectDrop();
+						dtde.dropComplete(false);
+						statusLabel.setText("Cannot drop: some tags have duplicate names");
+						logger.info("Drop rejected: some tags have duplicate names");
+					}
+				} else {
+					dtde.rejectDrop();
+					dtde.dropComplete(false);
+				}
 			} else {
-				command = new AddTagCommand((TagList) parent.getTag(), newTag);
+				Tag tag = (Tag) data;
+
+				boolean nameExists = false;
+				if (parent.getTag() instanceof TagCompound compound) {
+					nameExists = compound.hasTag(tag.getName());
+				}
+
+				if (nameExists) {
+					dtde.rejectDrop();
+					dtde.dropComplete(false);
+					statusLabel.setText("Cannot drop: tag with same name already exists");
+					logger.info("Drop rejected: tag with same name already exists");
+					return;
+				}
+
+				dtde.acceptDrop(DnDConstants.ACTION_COPY);
+
+				Tag newTag = tag.copy();
+				newTag.setName(tag.getName());
+				NBTCommand command;
+				if (parent.getTag() instanceof TagCompound) {
+					command = new AddTagCommand((TagCompound) parent.getTag(), newTag);
+				} else {
+					command = new AddTagCommand((TagList) parent.getTag(), newTag);
+				}
+				commandManager.executeCommand(command);
+				parent.addChildTag(newTag);
+				parent.loadChildren();
+				treeModel.fireTreeStructureChanged(path);
+				statusLabel.setText("Dropped tag: " + newTag.getName());
+				logger.info("Dropped tag: " + newTag.getName());
 			}
-			commandManager.executeCommand(command);
-			parent.addChildTag(newTag);
-			parent.loadChildren();
-			treeModel.fireTreeStructureChanged(path);
-			statusLabel.setText("Dropped tag: " + newTag.getName());
-			logger.info("Dropped tag: " + newTag.getName());
 		} else {
 			dtde.rejectDrop();
 			dtde.dropComplete(false);
 		}
 	} catch (Exception e) {
 		logger.error("Error handling tag drop", e);
+		dtde.rejectDrop();
 		dtde.dropComplete(false);
 	}
 }

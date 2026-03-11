@@ -18,7 +18,7 @@ private String logFilePath;
 
 private Logger() {
 	try {
-		// Get system-specific config directory
+
 		String configDir = getConfigDirectory();
 		File logDir = new File(configDir);
 		if (!logDir.exists()) {
@@ -40,7 +40,7 @@ private String getConfigDirectory() {
 	String userHome = System.getProperty("user.home");
 
 	if (os.contains("linux")) {
-		// Linux: ~/.config/JNBTExplorer/
+
 		String xdgConfig = System.getenv("XDG_CONFIG_HOME");
 		if (xdgConfig != null && !xdgConfig.isEmpty()) {
 			return xdgConfig + File.separator + APP_NAME;
@@ -48,10 +48,10 @@ private String getConfigDirectory() {
 			return userHome + File.separator + ".config" + File.separator + APP_NAME;
 		}
 	} else if (os.contains("mac") || os.contains("darwin")) {
-		// macOS: ~/Library/Application Support/JNBTExplorer/
+
 		return userHome + File.separator + "Library" + File.separator + "Application Support" + File.separator + APP_NAME;
 	} else {
-		// Windows: %APPDATA%\JNBTExplorer\
+
 		String appData = System.getenv("APPDATA");
 		if (appData != null && !appData.isEmpty()) {
 			return appData + File.separator + APP_NAME;
