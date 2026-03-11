@@ -64,11 +64,12 @@ public void loadConfig() {
 
 private void setDefaultValues() {
 	properties.setProperty("defaultTypeSortMode", "TYPE_DESC");
+	properties.setProperty("iconStyle", "modern");
 	properties.setProperty("defaultNameSortMode", "NAME_ASC");
-	properties.setProperty("enableDragAndDrop", "true");
+	properties.setProperty("enableDragAndDrop", "false");
 	properties.setProperty("showTypeIcons", "true");
-	properties.setProperty("alwaysShowNames", "true");
-	properties.setProperty("showArrayRawValues", "false");
+	properties.setProperty("alwaysShowNames", "false");
+	properties.setProperty("showArrayRawValues", "true");
 }
 
 public void saveConfig() {
