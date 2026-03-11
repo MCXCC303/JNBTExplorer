@@ -9,6 +9,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      packages: write
+      actions: read
+      checks: read
     
     steps:
       - uses: actions/checkout@v4
