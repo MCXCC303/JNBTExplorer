@@ -7,9 +7,14 @@ import com.MCXCC.JNBTExplorer.nbt.util.ConfigManager;
 import javax.swing.*;
 import javax.swing.tree.DefaultTreeCellRenderer;
 import java.awt.*;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 
 public class NBTTreeCellRenderer extends DefaultTreeCellRenderer {
 private final ConfigManager configManager;
+private Map<TagType, Icon> originalIcons;
+private boolean originalIconsLoaded = false;
 
 public NBTTreeCellRenderer(ConfigManager configManager) {
 	this.configManager = configManager;
@@ -74,7 +79,10 @@ private String getValueText(Tag tag) {
 		case TAG_LONG -> String.valueOf(((TagLong) tag).getValue());
 		case TAG_FLOAT -> String.valueOf(((TagFloat) tag).getValue());
 		case TAG_DOUBLE -> String.valueOf(((TagDouble) tag).getValue());
-		case TAG_BYTE_ARRAY -> "[" + ((TagByteArray) tag).getValue().length + " bytes]";
+		case TAG_BYTE_ARRAY -> {
+			byte[] arr = ((TagByteArray) tag).getValue();
+			yield formatByteArrayHex(arr);
+		}
 		case TAG_STRING -> "\"" + ((TagString) tag).getValue() + "\"";
 		case TAG_LIST -> "[" + ((TagList) tag).size() + " entries]";
 		case TAG_COMPOUND -> "[" + ((TagCompound) tag).size() + " entries]";
@@ -82,12 +90,64 @@ private String getValueText(Tag tag) {
 			int[] arr = ((TagIntArray) tag).getValue();
 			if (arr.length == 4) {
 				yield formatUuid(arr);
+			} else {
+				yield formatIntArrayHex(arr);
 			}
-			yield "[" + arr.length + " ints]";
 		}
-		case TAG_LONG_ARRAY -> "[" + ((TagLongArray) tag).getValue().length + " longs]";
+		case TAG_LONG_ARRAY -> {
+			long[] arr = ((TagLongArray) tag).getValue();
+			yield formatLongArrayHex(arr);
+		}
+		case TAG_SHORT_ARRAY -> {
+			short[] arr = ((TagShortArray) tag).getValue();
+			yield formatShortArrayHex(arr);
+		}
 		default -> "";
 	};
+}
+
+private String formatIntArrayHex(int[] arr) {
+	StringBuilder sb = new StringBuilder();
+	for (int i = 0; i < arr.length; i++) {
+		sb.append(String.format("%08x", arr[i]));
+		if (i < arr.length - 1) {
+			sb.append("-");
+		}
+	}
+	return sb.toString();
+}
+
+private String formatLongArrayHex(long[] arr) {
+	StringBuilder sb = new StringBuilder();
+	for (int i = 0; i < arr.length; i++) {
+		sb.append(String.format("%016x", arr[i]));
+		if (i < arr.length - 1) {
+			sb.append("-");
+		}
+	}
+	return sb.toString();
+}
+
+private String formatShortArrayHex(short[] arr) {
+	StringBuilder sb = new StringBuilder();
+	for (int i = 0; i < arr.length; i++) {
+		sb.append(String.format("%04x", arr[i] & 0xFFFF));
+		if (i < arr.length - 1) {
+			sb.append("-");
+		}
+	}
+	return sb.toString();
+}
+
+private String formatByteArrayHex(byte[] arr) {
+	StringBuilder sb = new StringBuilder();
+	for (int i = 0; i < arr.length; i++) {
+		sb.append(String.format("%02x", arr[i] & 0xFF));
+		if (i < arr.length - 1) {
+			sb.append("-");
+		}
+	}
+	return sb.toString();
 }
 
 private String formatUuid(int[] arr) {
@@ -102,8 +162,51 @@ private String formatUuid(int[] arr) {
 
 private Icon getIconForType(TagType type, boolean hasName) {
 	String iconStyle = configManager.getIconStyle();
-	if ("modern".equals(iconStyle)) {
+	if ("original".equals(iconStyle)) {
+		return getOriginalIconForType(type);
+	} else if ("modern".equals(iconStyle)) {
 		return getModernIconForType(type, hasName);
+	}
+	return getClassicIconForType(type);
+}
+
+private void loadOriginalIcons() {
+	if (originalIconsLoaded) return;
+
+	originalIcons = new HashMap<>();
+
+	String[] iconNames = {
+		"tag_byte", "tag_short", "tag_int", "tag_long",
+		"tag_float", "tag_double", "tag_byte_array", "tag_string",
+		"tag_list", "tag_compound", "tag_int_array", "tag_long_array", "tag_short_array"
+	};
+
+	TagType[] types = {
+		TagType.TAG_BYTE, TagType.TAG_SHORT, TagType.TAG_INT, TagType.TAG_LONG,
+		TagType.TAG_FLOAT, TagType.TAG_DOUBLE, TagType.TAG_BYTE_ARRAY, TagType.TAG_STRING,
+		TagType.TAG_LIST, TagType.TAG_COMPOUND, TagType.TAG_INT_ARRAY, TagType.TAG_LONG_ARRAY, TagType.TAG_SHORT_ARRAY
+	};
+
+	for (int i = 0; i < iconNames.length; i++) {
+		String path = "/com/MCXCC/JNBTExplorer/resources/original/" + iconNames[i] + ".png";
+		URL url = getClass().getResource(path);
+		if (url != null) {
+			ImageIcon icon = new ImageIcon(url);
+			if (icon.getIconWidth() > 16 || icon.getIconHeight() > 16) {
+				icon = new ImageIcon(icon.getImage().getScaledInstance(16, 16, Image.SCALE_SMOOTH));
+			}
+			originalIcons.put(types[i], icon);
+		}
+	}
+
+	originalIconsLoaded = true;
+}
+
+private Icon getOriginalIconForType(TagType type) {
+	loadOriginalIcons();
+	Icon icon = originalIcons.get(type);
+	if (icon != null) {
+		return icon;
 	}
 	return getClassicIconForType(type);
 }

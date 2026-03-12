@@ -28,7 +28,7 @@ public PreferencesDialog(JFrame parent, ConfigManager configManager, Logger logg
 }
 
 private void initComponents() {
-	setSize(600, 400);
+	setSize(800, 350);
 	setLayout(new BorderLayout());
 
 	JPanel contentPanel = new JPanel();
@@ -73,10 +73,12 @@ private void initComponents() {
 
 	// Icon Style
 	JLabel iconStyleLabel = new JLabel("Icon Style:");
-	iconStyleComboBox = new JComboBox<>(new String[]{"Classic", "Modern"});
+	iconStyleComboBox = new JComboBox<>(new String[]{"Classic", "Modern", "Original"});
 	String currentIconStyle = configManager.getIconStyle();
 	if ("modern".equals(currentIconStyle)) {
 		iconStyleComboBox.setSelectedIndex(1);
+	} else if ("original".equals(currentIconStyle)) {
+		iconStyleComboBox.setSelectedIndex(2);
 	} else {
 		iconStyleComboBox.setSelectedIndex(0);
 	}
@@ -168,6 +170,8 @@ private void savePreferences() {
 	int iconStyleIndex = iconStyleComboBox.getSelectedIndex();
 	if (iconStyleIndex == 1) {
 		configManager.setIconStyle("modern");
+	} else if (iconStyleIndex == 2) {
+		configManager.setIconStyle("original");
 	} else {
 		configManager.setIconStyle("classic");
 	}
@@ -188,7 +192,15 @@ public boolean isConfirmed() {
 }
 
 public boolean shouldRefreshUI() {
-	String newIconStyle = iconStyleComboBox.getSelectedIndex() == 1 ? "modern" : "classic";
+	String newIconStyle;
+	int iconStyleIndex = iconStyleComboBox.getSelectedIndex();
+	if (iconStyleIndex == 1) {
+		newIconStyle = "modern";
+	} else if (iconStyleIndex == 2) {
+		newIconStyle = "original";
+	} else {
+		newIconStyle = "classic";
+	}
 	return showTypeIconsCheckBox.isSelected() != configManager.isShowTypeIcons() ||
 		alwaysShowNamesCheckBox.isSelected() != configManager.isAlwaysShowNames() ||
 		showArrayRawValuesCheckBox.isSelected() != configManager.isShowArrayRawValues() ||

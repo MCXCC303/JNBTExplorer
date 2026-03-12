@@ -182,8 +182,11 @@ public String toString() {
 			hasName ? name + ": " + ((TagFloat) tag).getValue() : String.valueOf(((TagFloat) tag).getValue());
 		case TAG_DOUBLE ->
 			hasName ? name + ": " + ((TagDouble) tag).getValue() : String.valueOf(((TagDouble) tag).getValue());
-		case TAG_BYTE_ARRAY ->
-			hasName ? name + " [" + ((TagByteArray) tag).getValue().length + " bytes]" : "[" + ((TagByteArray) tag).getValue().length + " bytes]";
+		case TAG_BYTE_ARRAY -> {
+			byte[] arr = ((TagByteArray) tag).getValue();
+			String valueStr = formatByteArrayHex(arr);
+			yield hasName ? name + ": " + valueStr : valueStr;
+		}
 		case TAG_STRING ->
 			hasName ? name + ": \"" + ((TagString) tag).getValue() + "\"" : "\"" + ((TagString) tag).getValue() + "\"";
 		case TAG_LIST ->
@@ -192,15 +195,24 @@ public String toString() {
 			hasName ? name + " [" + ((TagCompound) tag).size() + " entries]" : "[" + ((TagCompound) tag).size() + " entries]";
 		case TAG_INT_ARRAY -> {
 			int[] arr = ((TagIntArray) tag).getValue();
+			String valueStr;
 			if (arr.length == 4) {
-				yield hasName ? name + ": " + formatUuid(arr) : formatUuid(arr);
+				valueStr = formatUuid(arr);
+			} else {
+				valueStr = formatIntArrayHex(arr);
 			}
-			yield hasName ? name + " [" + arr.length + " ints]" : "[" + arr.length + " ints]";
+			yield hasName ? name + ": " + valueStr : valueStr;
 		}
-		case TAG_LONG_ARRAY ->
-			hasName ? name + " [" + ((TagLongArray) tag).getValue().length + " longs]" : "[" + ((TagLongArray) tag).getValue().length + " longs]";
-		case TAG_SHORT_ARRAY ->
-			hasName ? name + " [" + ((TagShortArray) tag).getValue().length + " shorts]" : "[" + ((TagShortArray) tag).getValue().length + " shorts]";
+		case TAG_LONG_ARRAY -> {
+			long[] arr = ((TagLongArray) tag).getValue();
+			String valueStr = formatLongArrayHex(arr);
+			yield hasName ? name + ": " + valueStr : valueStr;
+		}
+		case TAG_SHORT_ARRAY -> {
+			short[] arr = ((TagShortArray) tag).getValue();
+			String valueStr = formatShortArrayHex(arr);
+			yield hasName ? name + ": " + valueStr : valueStr;
+		}
 		default -> name;
 	};
 }
@@ -213,5 +225,41 @@ private String formatUuid(int[] arr) {
 		arr[1] & 0xFFFF,
 		(arr[2] >> 16) & 0xFFFF,
 		((long) (arr[2] & 0xFFFF) << 32) | ((long) arr[3] & 0xFFFFFFFFL));
+}
+
+private String formatIntArrayHex(int[] arr) {
+	StringBuilder sb = new StringBuilder();
+	for (int i = 0; i < arr.length; i++) {
+		sb.append(String.format("%08x", arr[i]));
+		if (i < arr.length - 1) sb.append("-");
+	}
+	return sb.toString();
+}
+
+private String formatLongArrayHex(long[] arr) {
+	StringBuilder sb = new StringBuilder();
+	for (int i = 0; i < arr.length; i++) {
+		sb.append(String.format("%016x", arr[i]));
+		if (i < arr.length - 1) sb.append("-");
+	}
+	return sb.toString();
+}
+
+private String formatShortArrayHex(short[] arr) {
+	StringBuilder sb = new StringBuilder();
+	for (int i = 0; i < arr.length; i++) {
+		sb.append(String.format("%04x", arr[i] & 0xFFFF));
+		if (i < arr.length - 1) sb.append("-");
+	}
+	return sb.toString();
+}
+
+private String formatByteArrayHex(byte[] arr) {
+	StringBuilder sb = new StringBuilder();
+	for (int i = 0; i < arr.length; i++) {
+		sb.append(String.format("%02x", arr[i] & 0xFF));
+		if (i < arr.length - 1) sb.append("-");
+	}
+	return sb.toString();
 }
 }

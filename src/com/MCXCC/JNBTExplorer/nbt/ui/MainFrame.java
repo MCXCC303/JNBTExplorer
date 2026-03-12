@@ -18,7 +18,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class MainFrame extends JFrame implements DropTargetListener {
 private final NBTTreeModel treeModel;
@@ -175,6 +177,10 @@ private void initUI() {
 
 		@Override
 		public void mousePressed(MouseEvent e) {
+			int row = tree.getRowForLocation(e.getX(), e.getY());
+			if (row == -1) {
+				tree.clearSelection();
+			}
 			showPopupMenu(e);
 		}
 
@@ -1276,7 +1282,25 @@ private void addTag() {
 		path = new TreePath(treeModel.getRoot());
 	}
 
-	NBTNode parent = (NBTNode) path.getLastPathComponent();
+	NBTNode selectedNode = (NBTNode) path.getLastPathComponent();
+	NBTNode parent;
+	TreePath parentPath;
+
+	if (!selectedNode.isContainer()) {
+		if (path.getPathCount() <= 1) {
+			JOptionPane.showMessageDialog(this,
+				"Cannot add tag: selected element has no parent container",
+				"Error", JOptionPane.ERROR_MESSAGE);
+			logger.warning("Add tag failed: no parent container available");
+			return;
+		}
+		parentPath = path.getParentPath();
+		parent = (NBTNode) parentPath.getLastPathComponent();
+	} else {
+		parent = selectedNode;
+		parentPath = path;
+	}
+
 	if (!parent.isContainer()) {
 		JOptionPane.showMessageDialog(this,
 			"Can only add tags to compound or list tags",
@@ -1287,31 +1311,44 @@ private void addTag() {
 
 	logger.info("Adding new tag to parent: " + parent.getName());
 
-	CreateTagDialog dialog = new CreateTagDialog(this);
-	dialog.setVisible(true);
+	Set<String> existingNames = new HashSet<>();
+	if (parent.getTag() instanceof TagCompound) {
+		TagCompound compound = (TagCompound) parent.getTag();
+		for (Tag tag : compound.getTags()) {
+			if (tag.getName() != null) {
+				existingNames.add(tag.getName());
+			}
+		}
+	} else if (parent.getTag() instanceof TagList) {
+		TagList list = (TagList) parent.getTag();
+		for (Tag tag : list.getTags()) {
+			if (tag.getName() != null) {
+				existingNames.add(tag.getName());
+			}
+		}
+	}
 
-	if (dialog.isConfirmed()) {
-		Tag newTag = dialog.getNewTag();
-		if (newTag != null) {
-
+	final NBTNode finalParent = parent;
+	final TreePath finalParentPath = parentPath;
+	CreateTagDialog dialog = new CreateTagDialog(this, existingNames, (confirmed, newTag) -> {
+		if (confirmed && newTag != null) {
 			NBTCommand command;
-			if (parent.getTag() instanceof TagCompound) {
-				command = new AddTagCommand((TagCompound) parent.getTag(), newTag);
+			if (finalParent.getTag() instanceof TagCompound) {
+				command = new AddTagCommand((TagCompound) finalParent.getTag(), newTag);
 			} else {
-				command = new AddTagCommand((TagList) parent.getTag(), newTag);
+				command = new AddTagCommand((TagList) finalParent.getTag(), newTag);
 			}
 			commandManager.executeCommand(command);
 
-			parent.loadChildren();
-			treeModel.fireTreeStructureChanged(path);
+			finalParent.loadChildren();
+			treeModel.fireTreeStructureChanged(finalParentPath);
 			statusLabel.setText("Added tag: " + newTag.getName());
-			logger.info("Added tag: " + newTag.getName() + " (type: " + newTag.getType() + ") to parent: " + parent.getName());
+			logger.info("Added tag: " + newTag.getName() + " (type: " + newTag.getType() + ") to parent: " + finalParent.getName());
 		} else {
-			logger.info("Add tag cancelled: no tag created");
+			logger.info("Add tag operation cancelled");
 		}
-	} else {
-		logger.info("Add tag operation cancelled");
-	}
+	});
+	dialog.setVisible(true);
 }
 
 private void editSelectedNode() {
@@ -1338,23 +1375,23 @@ private void editSelectedNode() {
 	Object oldValue = getTagValue(tag);
 	logger.info("Editing tag: " + tag.getName() + " (old value: " + oldValue + ")");
 
-	EditTagDialog dialog = new EditTagDialog(this, tag);
+	EditTagDialog dialog = new EditTagDialog(this, tag, (confirmed, editedTag) -> {
+		if (confirmed) {
+			Object newValue = getTagValue(editedTag);
+
+			NBTCommand command = new EditTagCommand(editedTag, oldValue, newValue);
+			commandManager.executeCommand(command);
+
+			node.setModified(true);
+			treeModel.fireTreeNodesChanged(path);
+			updateTitle();
+			statusLabel.setText("Edited tag: " + editedTag.getName());
+			logger.info("Edited tag: " + editedTag.getName() + " (new value: " + newValue + ")");
+		} else {
+			logger.info("Edit tag operation cancelled: " + editedTag.getName());
+		}
+	});
 	dialog.setVisible(true);
-
-	if (dialog.isConfirmed()) {
-		Object newValue = getTagValue(tag);
-
-		NBTCommand command = new EditTagCommand(tag, oldValue, newValue);
-		commandManager.executeCommand(command);
-
-		node.setModified(true);
-		treeModel.fireTreeNodesChanged(path);
-		updateTitle();
-		statusLabel.setText("Edited tag: " + tag.getName());
-		logger.info("Edited tag: " + tag.getName() + " (new value: " + newValue + ")");
-	} else {
-		logger.info("Edit tag operation cancelled: " + tag.getName());
-	}
 }
 
 private Object getTagValue(Tag tag) {
@@ -1558,11 +1595,80 @@ private void redo() {
 }
 
 private void refreshTree() {
+	refreshTreePreservingExpansion();
+}
+
+private void refreshTreePreservingExpansion() {
 	NBTNode root = treeModel.getRootNode();
-	if (root != null) {
-		root.refresh();
-		treeModel.fireTreeStructureChanged(new TreePath(root));
+	if (root == null) return;
+
+	java.util.Set<String> expandedPaths = new java.util.HashSet<>();
+	int rowCount = tree.getRowCount();
+	for (int i = 0; i < rowCount; i++) {
+		TreePath path = tree.getPathForRow(i);
+		if (path != null && tree.isExpanded(path)) {
+			expandedPaths.add(pathToString(path));
+		}
 	}
+
+	root.refresh();
+	treeModel.fireTreeStructureChanged(new TreePath(root));
+
+	for (String pathStr : expandedPaths) {
+		TreePath path = stringToPath(pathStr);
+		if (path != null) {
+			tree.expandPath(path);
+		}
+	}
+}
+
+private String pathToString(TreePath path) {
+	StringBuilder sb = new StringBuilder();
+	Object[] elements = path.getPath();
+	for (int i = 0; i < elements.length; i++) {
+		if (i > 0) sb.append("/");
+		NBTNode node = (NBTNode) elements[i];
+		Tag tag = node.getTag();
+		if (tag != null) {
+			sb.append(tag.getName() != null ? tag.getName() : "");
+			sb.append(":").append(tag.getType().ordinal());
+		}
+	}
+	return sb.toString();
+}
+
+private TreePath stringToPath(String pathStr) {
+	NBTNode root = treeModel.getRootNode();
+	if (root == null) return null;
+
+	String[] parts = pathStr.split("/");
+	NBTNode current = root;
+	Object[] pathElements = new Object[parts.length];
+	pathElements[0] = root;
+
+	for (int i = 1; i < parts.length; i++) {
+		String part = parts[i];
+		int colonIdx = part.lastIndexOf(":");
+		if (colonIdx < 0) continue;
+
+		String name = part.substring(0, colonIdx);
+		int typeOrdinal = Integer.parseInt(part.substring(colonIdx + 1));
+
+		for (int j = 0; j < current.getChildCount(); j++) {
+			NBTNode child = (NBTNode) current.getChildAt(j);
+			Tag childTag = child.getTag();
+			if (childTag != null) {
+				String childName = childTag.getName() != null ? childTag.getName() : "";
+				if (childName.equals(name) && childTag.getType().ordinal() == typeOrdinal) {
+					current = child;
+					pathElements[i] = child;
+					break;
+				}
+			}
+		}
+	}
+
+	return new TreePath(pathElements);
 }
 
 private void pasteTag() {
