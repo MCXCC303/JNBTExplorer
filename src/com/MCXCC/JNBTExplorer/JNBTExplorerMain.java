@@ -48,6 +48,11 @@ public static void main(String[] args) {
 					} else {
 						logger.severe("File not found: " + arg);
 
+						JOptionPane.showMessageDialog(null,
+							"File not found: " + arg,
+							"Error",
+							JOptionPane.ERROR_MESSAGE);
+
 						MainFrame frame = new MainFrame(null, configManager, logger);
 						frame.setVisible(true);
 					}

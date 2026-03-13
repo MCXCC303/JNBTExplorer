@@ -18,7 +18,7 @@ build() {
     mkdir -p bin
 
     echo "Compiling Java files..."
-    javac -verbose -encoding UTF-8 -d bin -sourcepath src src/com/MCXCC/JNBTExplorer/JNBTExplorerMain.java
+    javac -Xlint:all -encoding UTF-8 -d bin -sourcepath src src/com/MCXCC/JNBTExplorer/JNBTExplorerMain.java
     if [ $? -ne 0 ]; then
         echo "Compilation failed!"
         exit 1

@@ -30,7 +30,6 @@ public Component getTreeCellRendererComponent(JTree tree, Object value,
 		TagType type = node.getType();
 
 		if (type != null) {
-			// Set icon based on config
 			if (configManager.isShowTypeIcons()) {
 				boolean hasName = node.getName() != null && !node.getName().isEmpty();
 				setIcon(getIconForType(type, hasName));
@@ -38,28 +37,22 @@ public Component getTreeCellRendererComponent(JTree tree, Object value,
 				setIcon(null);
 			}
 
-			// Set text based on config
 			String nodeText = node.toString();
 			String tagName = node.getName();
 
 			if (configManager.isAlwaysShowNames()) {
-				// Always show name, even if it's empty
 				if (tagName == null || tagName.isEmpty()) {
-					// For tags without name, show <unnamed>: value
 					String valueText = getValueText(node.getTag());
 					setText("<unnamed>: " + valueText);
 				} else {
 					setText(nodeText);
 				}
 			} else {
-				// Show only value for non-container tags without name
 				if (type == TagType.TAG_COMPOUND || type == TagType.TAG_LIST) {
 					setText(nodeText);
 				} else if (tagName == null || tagName.isEmpty()) {
-					// For tags without name, show only value
 					setText(getValueText(node.getTag()));
 				} else {
-					// For tags with name, show name: value
 					setText(nodeText);
 				}
 			}

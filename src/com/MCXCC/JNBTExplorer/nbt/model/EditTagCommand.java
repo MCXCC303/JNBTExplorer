@@ -6,20 +6,30 @@ public class EditTagCommand implements NBTCommand {
 private final Tag tag;
 private final Object oldValue;
 private final Object newValue;
+private final String oldName;
+private final String newName;
 
-public EditTagCommand(Tag tag, Object oldValue, Object newValue) {
+public EditTagCommand(Tag tag, Object oldValue, Object newValue, String oldName, String newName) {
 	this.tag = tag;
 	this.oldValue = oldValue;
 	this.newValue = newValue;
+	this.oldName = oldName;
+	this.newName = newName;
 }
 
 @Override
 public void execute() {
+	if (newName != null && !newName.equals(oldName)) {
+		tag.setName(newName);
+	}
 	applyValue(newValue);
 }
 
 @Override
 public void undo() {
+	if (oldName != null && !oldName.equals(newName)) {
+		tag.setName(oldName);
+	}
 	applyValue(oldValue);
 }
 

@@ -44,7 +44,6 @@ private JMenuItem deleteItem;
 private JSeparator separator1;
 private JSeparator separator2;
 
-// Search functionality
 private JTextField searchField;
 private JButton searchNextButton;
 private JButton searchPrevButton;
@@ -53,13 +52,8 @@ private boolean searchPanelVisible = false;
 private final List<NBTNode> searchResults;
 private int currentSearchIndex;
 
-// Find and Replace
 private FindReplaceDialog findReplaceDialog;
 private final SearchHandler searchHandler;
-
-public MainFrame() {
-	this(null, null, null);
-}
 
 public MainFrame(String filePath, ConfigManager configManager, Logger logger) {
 	this.configManager = Objects.requireNonNullElseGet(configManager, ConfigManager::new);
@@ -73,11 +67,9 @@ public MainFrame(String filePath, ConfigManager configManager, Logger logger) {
 	this.commandManager = new CommandManager(this.logger);
 	this.logger.info("Creating MainFrame");
 
-	// Initialize search variables
 	searchResults = new ArrayList<>();
 	currentSearchIndex = -1;
 
-	// Set default sort modes from config
 	String typeSortModeStr = configManager.getDefaultTypeSortMode();
 	if (typeSortModeStr.equals("TYPE_ASC")) {
 		typeSortMode = SortMode.TYPE_ASC;
@@ -177,7 +169,14 @@ private void initUI() {
 		@Override
 		public void mouseClicked(MouseEvent e) {
 			if (e.getClickCount() == 2) {
-				editSelectedNode();
+				TreePath path = tree.getPathForLocation(e.getX(), e.getY());
+				if (path != null) {
+					NBTNode node = (NBTNode) path.getLastPathComponent();
+					Tag tag = node.getTag();
+					if (!(tag instanceof TagCompound || tag instanceof TagList)) {
+						editSelectedNode();
+					}
+				}
 			}
 		}
 
@@ -196,7 +195,6 @@ private void initUI() {
 		}
 	});
 
-	// Enable drag and drop based on config
 	if (configManager.isDragAndDropEnabled()) {
 		DragSource dragSource = DragSource.getDefaultDragSource();
 		dragSource.createDefaultDragGestureRecognizer(tree,
@@ -338,7 +336,6 @@ private void initMenu() {
 	editMenu.add(undoItem);
 	editMenu.add(redoItem);
 
-	// Add Preferences menu item
 	editMenu.addSeparator();
 	JMenuItem preferencesItem = new JMenuItem("Preferences...");
 	preferencesItem.addActionListener(e -> showPreferencesDialog());
@@ -440,7 +437,6 @@ private void initMenu() {
 	menuBar.add(editMenu);
 	menuBar.add(viewMenu);
 
-	// Search Menu
 	JMenu searchMenu = new JMenu("Search");
 	searchMenu.setMnemonic(KeyEvent.VK_S);
 
@@ -553,10 +549,8 @@ private void initPopupMenu() {
 }
 
 private void initToolbar() {
-	// Main toolbar panel to hold multiple rows
 	JPanel toolbarPanel = new JPanel(new BorderLayout());
 
-	// First toolbar row - File operations
 	JToolBar toolBar1 = new JToolBar();
 	toolBar1.setFloatable(false);
 
@@ -606,7 +600,6 @@ private void initToolbar() {
 
 	toolbarPanel.add(toolBar1, BorderLayout.NORTH);
 
-	// Second toolbar row - Search functionality
 	toolBar2 = new JToolBar();
 	toolBar2.setFloatable(false);
 
@@ -633,7 +626,6 @@ private void initToolbar() {
 
 	toolBar2.add(searchPanel);
 
-	// Set initial visibility based on searchPanelVisible (default: false)
 	toolBar2.setVisible(searchPanelVisible);
 
 	toolbarPanel.add(toolBar2, BorderLayout.SOUTH);
@@ -762,7 +754,6 @@ private boolean checkSave() {
 	return true;
 }
 
-// Search functionality methods
 private void performSearch() {
 	searchHandler.performSearch(searchField.getText());
 }
@@ -801,14 +792,12 @@ private void updateSearchButtons() {
 	searchPrevButton.setEnabled(hasResults);
 }
 
-// Find and Replace functionality
 private void showFindReplaceDialog() {
 	logger.info("Showing Find and Replace dialog");
 	findReplaceDialog = new FindReplaceDialog(this);
 	findReplaceDialog.setVisible(true);
 
 	if (findReplaceDialog.isConfirmed()) {
-		// Perform initial search
 		performAdvancedSearch();
 	}
 }
@@ -828,7 +817,6 @@ private void performAdvancedSearch() {
 	searchResults.clear();
 	currentSearchIndex = -1;
 
-	// Start search from root
 	NBTNode root = (NBTNode) treeModel.getRoot();
 	searchNodesAdvanced(root, findReplaceDialog);
 
@@ -848,7 +836,6 @@ private void performAdvancedSearch() {
 private void searchNodesAdvanced(NBTNode node, FindReplaceDialog dialog) {
 	if (node == null) return;
 
-	// Load children if not already loaded
 	boolean wasExpanded = node.getChildCount() > 0;
 	if (!wasExpanded) {
 		node.loadChildren();
@@ -859,19 +846,16 @@ private void searchNodesAdvanced(NBTNode node, FindReplaceDialog dialog) {
 		boolean nameMatch = true;
 		boolean valueMatch = true;
 
-		// Check name match
 		if (dialog.isFindByName() && !dialog.getFindName().isEmpty()) {
 			String name = tag.getName();
 			nameMatch = dialog.matchesName(name);
 		}
 
-		// Check value match
 		if (dialog.isFindByValue() && !dialog.getFindValue().isEmpty()) {
 			String value = node.toString();
 			valueMatch = dialog.matchesValue(value);
 		}
 
-		// If both match, add to results
 		if (nameMatch && valueMatch) {
 			if (!searchResults.contains(node)) {
 				searchResults.add(node);
@@ -879,7 +863,6 @@ private void searchNodesAdvanced(NBTNode node, FindReplaceDialog dialog) {
 		}
 	}
 
-	// Recursively search children
 	for (int i = 0; i < node.getChildCount(); i++) {
 		NBTNode child = (NBTNode) node.getChildAt(i);
 		searchNodesAdvanced(child, dialog);
@@ -926,7 +909,6 @@ private void replaceAll() {
 	logger.info("Replaced " + replaceCount + " occurrences");
 	JOptionPane.showMessageDialog(this, "Replaced " + replaceCount + " occurrences", "Replace All", JOptionPane.INFORMATION_MESSAGE);
 
-	// Refresh tree
 	treeModel.fireTreeStructureChanged(new TreePath(treeModel.getRoot()));
 }
 
@@ -938,7 +920,6 @@ private boolean performReplace(NBTNode node) {
 
 	boolean replaced = false;
 
-	// Replace name
 	if (findReplaceDialog.isReplaceName() && !findReplaceDialog.getReplaceName().isEmpty()) {
 		String oldName = tag.getName();
 		String newName = findReplaceDialog.getReplaceName();
@@ -948,7 +929,6 @@ private boolean performReplace(NBTNode node) {
 		replaced = true;
 	}
 
-	// Replace value (only for simple types)
 	if (findReplaceDialog.isReplaceValue() && !findReplaceDialog.getReplaceValue().isEmpty()) {
 		String newValue = findReplaceDialog.getReplaceValue();
 		try {
@@ -982,7 +962,6 @@ private boolean performReplace(NBTNode node) {
 					replaced = true;
 					break;
 				default:
-					// Cannot replace value for complex types
 					break;
 			}
 			if (replaced) {
@@ -1007,7 +986,7 @@ private void exit() {
 private void openNewWindow() {
 	logger.info("Opening new window");
 	SwingUtilities.invokeLater(() -> {
-		MainFrame newFrame = new MainFrame();
+		MainFrame newFrame = new MainFrame(null, configManager, logger);
 		newFrame.setVisible(true);
 		logger.info("New window opened");
 	});
@@ -1026,7 +1005,6 @@ private void showPreferencesDialog() {
 	preferencesDialog.setVisible(true);
 
 	if (preferencesDialog.isConfirmed()) {
-		// Update sort modes
 		String typeSortModeStr = configManager.getDefaultTypeSortMode();
 		String nameSortModeStr = configManager.getDefaultNameSortMode();
 
@@ -1046,17 +1024,13 @@ private void showPreferencesDialog() {
 			NBTNode.setNameSortMode(SortMode.NONE);
 		}
 
-		// Update array raw values setting
 		NBTNode.setShowArrayRawValues(configManager.isShowArrayRawValues());
 
-		// Check if UI needs to be refreshed
 		if (preferencesDialog.shouldRefreshUI()) {
-			// Refresh tree to reflect changes
 			treeModel.fireTreeStructureChanged(new TreePath(treeModel.getRoot()));
 			logger.info("UI refreshed due to preference changes");
 		}
 
-		// Update local sort mode variables
 		if (typeSortModeStr.equals("TYPE_ASC")) {
 			typeSortMode = SortMode.TYPE_ASC;
 		} else if (typeSortModeStr.equals("TYPE_DESC")) {
@@ -1292,25 +1266,40 @@ private void editSelectedNode() {
 	Tag tag = node.getTag();
 
 	if (tag instanceof TagCompound || tag instanceof TagList) {
+		Object oldValue = getTagValue(tag);
+		String oldName = tag.getName();
+		logger.info("Editing container tag: " + oldName);
 
-		if (tree.isExpanded(path)) {
-			tree.collapsePath(path);
-			logger.info("Collapsed container tag: " + tag.getName());
-		} else {
-			tree.expandPath(path);
-			logger.info("Expanded container tag: " + tag.getName());
-		}
+		EditTagDialog dialog = new EditTagDialog(this, tag, (confirmed, editedTag) -> {
+			if (confirmed) {
+				String newName = editedTag.getName();
+
+				NBTCommand command = new EditTagCommand(editedTag, oldValue, oldValue, oldName, newName);
+				commandManager.executeCommand(command);
+
+				node.setModified(true);
+				treeModel.fireTreeNodesChanged(path);
+				updateTitle();
+				statusLabel.setText("Edited tag: " + editedTag.getName());
+				logger.info("Edited container tag: " + editedTag.getName());
+			} else {
+				logger.info("Edit tag operation cancelled: " + editedTag.getName());
+			}
+		});
+		dialog.setVisible(true);
 		return;
 	}
 
 	Object oldValue = getTagValue(tag);
-	logger.info("Editing tag: " + tag.getName() + " (old value: " + oldValue + ")");
+	String oldName = tag.getName();
+	logger.info("Editing tag: " + oldName + " (old value: " + oldValue + ")");
 
 	EditTagDialog dialog = new EditTagDialog(this, tag, (confirmed, editedTag) -> {
 		if (confirmed) {
 			Object newValue = getTagValue(editedTag);
+			String newName = editedTag.getName();
 
-			NBTCommand command = new EditTagCommand(editedTag, oldValue, newValue);
+			NBTCommand command = new EditTagCommand(editedTag, oldValue, newValue, oldName, newName);
 			commandManager.executeCommand(command);
 
 			node.setModified(true);
@@ -1326,7 +1315,11 @@ private void editSelectedNode() {
 }
 
 private Object getTagValue(Tag tag) {
-	if (tag instanceof TagByte) {
+	if (tag instanceof TagCompound) {
+		return ((TagCompound) tag).size();
+	} else if (tag instanceof TagList) {
+		return ((TagList) tag).size();
+	} else if (tag instanceof TagByte) {
 		return ((TagByte) tag).getValue();
 	} else if (tag instanceof TagShort) {
 		return ((TagShort) tag).getValue();
@@ -1379,14 +1372,12 @@ private void cutSelectedNode() {
 		return;
 	}
 
-	// Check if all selected nodes have the same parent
 	NBTNode parent = null;
 	List<Tag> tagsToCut = new ArrayList<>();
 	List<NBTNode> nodesToCut = new ArrayList<>();
 
 	for (TreePath path : paths) {
 		if (path.getParentPath() == null) {
-			// Cannot cut root node
 			return;
 		}
 
@@ -1394,7 +1385,6 @@ private void cutSelectedNode() {
 		if (parent == null) {
 			parent = currentParent;
 		} else if (parent != currentParent) {
-			// All selected nodes must have the same parent
 			JOptionPane.showMessageDialog(this, "All selected nodes must have the same parent", "Error", JOptionPane.ERROR_MESSAGE);
 			return;
 		}
@@ -1413,17 +1403,14 @@ private void cutSelectedNode() {
 
 	logger.info("Cutting " + tagsToCut.size() + " tags");
 
-	// Copy tags to clipboard
 	if (tagsToCut.size() == 1) {
 		NBTClipboard.getInstance().copyTag(tagsToCut.get(0));
 	} else {
 		NBTClipboard.getInstance().copyTags(tagsToCut);
 	}
 
-	// Create composite command for batch operation
 	CompositeCommand compositeCommand = new CompositeCommand(tagsToCut.size() == 1 ? "Cut tag" : "Cut " + tagsToCut.size() + " tags");
 
-	// Create and add delete commands
 	for (int i = 0; i < tagsToCut.size(); i++) {
 		Tag tag = tagsToCut.get(i);
 		NBTNode node = nodesToCut.get(i);
@@ -1440,12 +1427,10 @@ private void cutSelectedNode() {
 		parent.removeChildTag(node);
 	}
 
-	// Execute composite command
 	if (!compositeCommand.isEmpty()) {
 		commandManager.executeCommand(compositeCommand);
 	}
 
-	// Update UI
 	treeModel.fireTreeStructureChanged(paths[0].getParentPath());
 	updateTitle();
 
@@ -1831,8 +1816,13 @@ private void deleteSelectedNode() {
 		logger.info("Executed delete command for " + count + " tag(s)");
 	}
 
-	TreePath rootPath = new TreePath(treeModel.getRoot());
-	treeModel.fireTreeStructureChanged(rootPath);
+	for (TreePath path : paths) {
+		TreePath parentPath = path.getParentPath();
+		if (parentPath != null) {
+			treeModel.fireTreeStructureChanged(parentPath);
+		}
+	}
+
 	updateTitle();
 	statusLabel.setText("Deleted " + count + " tag(s)");
 	logger.info("Successfully deleted " + count + " tag(s)");

@@ -1,6 +1,11 @@
 package com.MCXCC.JNBTExplorer.nbt.tag;
 
-public abstract class Tag {
+import java.io.Serial;
+import java.io.Serializable;
+
+public abstract class Tag implements Serializable {
+@Serial
+private static final long serialVersionUID = 1L;
 protected String name;
 
 public Tag(String name) {

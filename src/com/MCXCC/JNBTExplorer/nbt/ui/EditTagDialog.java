@@ -15,6 +15,7 @@ private JTextField hexArea;
 private JTable arrayTable;
 private DefaultTableModel tableModel;
 private boolean isArrayEditor = false;
+private boolean isContainerEditor = false;
 
 public interface EditCallback {
 	void onEditComplete(boolean confirmed, Tag tag);
@@ -43,8 +44,11 @@ private void initUI() {
 	TagType type = tag.getType();
 
 	isArrayEditor = (type == TagType.TAG_INT_ARRAY || type == TagType.TAG_LONG_ARRAY || type == TagType.TAG_SHORT_ARRAY || type == TagType.TAG_BYTE_ARRAY);
+	isContainerEditor = (type == TagType.TAG_COMPOUND || type == TagType.TAG_LIST);
 
 	if (isArrayEditor) {
+		setSize(800, 400);
+	} else if (isContainerEditor) {
 		setSize(800, 400);
 	} else if (hasName) {
 		setSize(500, 150);
@@ -103,6 +107,30 @@ private void initUI() {
 		arrayPanel.add(buttonRowPanel, BorderLayout.SOUTH);
 
 		mainPanel.add(arrayPanel, BorderLayout.CENTER);
+	} else if (isContainerEditor) {
+		mainPanel.add(infoPanel, BorderLayout.NORTH);
+
+		JPanel containerPanel = new JPanel(new BorderLayout());
+		containerPanel.setBorder(BorderFactory.createTitledBorder("Container Elements"));
+
+		String[] columnNames = tag instanceof TagCompound ? new String[]{"Name", "Type"} : new String[]{"Index", "Type"};
+		tableModel = new DefaultTableModel(columnNames, 0) {
+			@Override
+			public boolean isCellEditable(int row, int column) {
+				return false;
+			}
+		};
+
+		arrayTable = new JTable(tableModel);
+		arrayTable.getColumnModel().getColumn(0).setPreferredWidth(150);
+		arrayTable.getColumnModel().getColumn(1).setPreferredWidth(150);
+
+		loadContainerData();
+
+		JScrollPane scrollPane = new JScrollPane(arrayTable);
+		containerPanel.add(scrollPane, BorderLayout.CENTER);
+
+		mainPanel.add(containerPanel, BorderLayout.CENTER);
 	} else {
 		infoPanel.add(new JLabel("Value:"));
 		valueField = new JTextField(getValueString());
@@ -312,6 +340,19 @@ private void removeSelectedElement() {
 	}
 }
 
+private void loadContainerData() {
+	if (tag instanceof TagCompound compound) {
+		for (Tag childTag : compound.getTags()) {
+			tableModel.addRow(new Object[]{childTag.getName(), childTag.getType().getName()});
+		}
+	} else if (tag instanceof TagList list) {
+		for (int i = 0; i < list.size(); i++) {
+			Tag childTag = list.getTags().get(i);
+			tableModel.addRow(new Object[]{i, childTag.getType().getName()});
+		}
+	}
+}
+
 private String getValueString() {
 	return switch (tag.getType()) {
 		case TAG_BYTE -> String.valueOf(((TagByte) tag).getValue());
@@ -427,7 +468,14 @@ private int[] parseHex(String hex) {
 private boolean parseValue() {
 	try {
 		if (nameField != null) {
-			tag.setName(nameField.getText().trim());
+			String newName = nameField.getText().trim();
+			if (!newName.equals(tag.getName())) {
+				tag.setName(newName);
+			}
+		}
+
+		if (isContainerEditor) {
+			return true;
 		}
 
 		if (isArrayEditor) {

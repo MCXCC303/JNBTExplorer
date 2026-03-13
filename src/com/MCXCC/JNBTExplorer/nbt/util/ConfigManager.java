@@ -52,7 +52,6 @@ public void loadConfig() {
 				properties.load(input);
 			}
 		} else {
-			// Set default values
 			setDefaultValues();
 			saveConfig();
 		}

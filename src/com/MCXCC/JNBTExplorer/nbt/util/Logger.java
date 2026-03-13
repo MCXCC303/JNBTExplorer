@@ -14,49 +14,54 @@ private FileHandler fileHandler;
 private ConsoleHandler consoleHandler;
 private boolean initialized;
 
+private static boolean handlersInitialized = false;
+
 public Logger(Date windowCreationTime, ConfigManager configManager) {
 	julLogger = java.util.logging.Logger.getLogger(APP_NAME);
 	try {
-		String configDir = getConfigDirectory();
-		File logDir = new File(configDir, "log");
-		if (!logDir.exists()) {
-			logDir.mkdirs();
-		}
-
-		String fileName = FILE_DATE_FORMAT.format(windowCreationTime) + ".log";
-		String logFilePath = new File(logDir, fileName).getAbsolutePath();
-
-		julLogger.setUseParentHandlers(false);
-
 		Level logLevel = parseLogLevel(configManager.getLogLevel());
 		julLogger.setLevel(logLevel);
+		julLogger.setUseParentHandlers(false);
 
-		SimpleFormatter formatter = new SimpleFormatter() {
-			private static final String FORMAT = "[%1$tF %1$tT] [%2$s] %3$s%n";
-
-			@Override
-			public String format(LogRecord record) {
-				return String.format(FORMAT,
-					new Date(record.getMillis()),
-					record.getLevel().getName(),
-					formatMessage(record));
+		if (!handlersInitialized) {
+			String configDir = getConfigDirectory();
+			File logDir = new File(configDir, "log");
+			if (!logDir.exists()) {
+				logDir.mkdirs();
 			}
-		};
 
-		fileHandler = new FileHandler(logFilePath, true);
-		fileHandler.setFormatter(formatter);
-		fileHandler.setLevel(logLevel);
-		julLogger.addHandler(fileHandler);
+			String fileName = FILE_DATE_FORMAT.format(windowCreationTime) + ".log";
+			String logFilePath = new File(logDir, fileName).getAbsolutePath();
 
-		if (configManager.isDebugMode()) {
-			consoleHandler = new ConsoleHandler();
-			consoleHandler.setFormatter(formatter);
-			consoleHandler.setLevel(logLevel);
-			julLogger.addHandler(consoleHandler);
+			SimpleFormatter formatter = new SimpleFormatter() {
+				private static final String FORMAT = "[%1$tF %1$tT] [%2$s] %3$s%n";
+
+				@Override
+				public String format(LogRecord record) {
+					return String.format(FORMAT,
+						new Date(record.getMillis()),
+						record.getLevel().getName(),
+						formatMessage(record));
+				}
+			};
+
+			fileHandler = new FileHandler(logFilePath, true);
+			fileHandler.setFormatter(formatter);
+			fileHandler.setLevel(logLevel);
+			julLogger.addHandler(fileHandler);
+
+			if (configManager.isDebugMode()) {
+				consoleHandler = new ConsoleHandler();
+				consoleHandler.setFormatter(formatter);
+				consoleHandler.setLevel(logLevel);
+				julLogger.addHandler(consoleHandler);
+			}
+
+			handlersInitialized = true;
+			info("Logger initialized, log file: " + logFilePath + ", log level: " + logLevel + ", debug mode: " + configManager.isDebugMode());
 		}
 
 		initialized = true;
-		info("Logger initialized, log file: " + logFilePath + ", log level: " + logLevel + ", debug mode: " + configManager.isDebugMode());
 	} catch (IOException e) {
 		System.err.println("Failed to initialize logger: " + e.getMessage());
 		initialized = false;
