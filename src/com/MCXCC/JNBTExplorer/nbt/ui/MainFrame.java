@@ -1518,31 +1518,50 @@ private void refreshTreePreservingExpansion() {
 	NBTNode root = treeModel.getRootNode();
 	if (root == null) return;
 
-	java.util.Set<String> expandedPaths = new java.util.HashSet<>();
+	java.util.List<TreePath> expandedPaths = new java.util.ArrayList<>();
 	int rowCount = tree.getRowCount();
+	logger.fine("[refreshTreePreservingExpansion] Saving expanded paths, rowCount=" + rowCount);
 	for (int i = 0; i < rowCount; i++) {
 		TreePath path = tree.getPathForRow(i);
 		if (path != null && tree.isExpanded(path)) {
-			expandedPaths.add(pathToString(path));
+			expandedPaths.add(path);
+			String pathStr = pathToString(path);
+			logger.finer("[refreshTreePreservingExpansion] Saving expanded path: " + pathStr);
 		}
 	}
+	logger.fine("[refreshTreePreservingExpansion] Total expanded paths saved: " + expandedPaths.size());
 
 	root.refresh();
 	treeModel.fireTreeStructureChanged(new TreePath(root));
+	logger.fine("[refreshTreePreservingExpansion] Tree structure changed, scheduling expansion restore");
 
-	for (String pathStr : expandedPaths) {
-		TreePath path = stringToPath(pathStr);
-		if (path != null) {
-			tree.expandPath(path);
+	SwingUtilities.invokeLater(() -> {
+		logger.fine("[refreshTreePreservingExpansion] Restoring expanded paths, tree rowCount=" + tree.getRowCount());
+		tree.expandPath(new TreePath(root));
+		logger.finer("[refreshTreePreservingExpansion] Root expanded");
+
+		int restoredCount = 0;
+		for (TreePath oldPath : expandedPaths) {
+			String pathStr = pathToString(oldPath);
+			logger.finer("[refreshTreePreservingExpansion] Trying to restore path: " + pathStr);
+			TreePath newPath = stringToPath(pathStr);
+			if (newPath != null && newPath.getPathCount() > 1) {
+				tree.expandPath(newPath);
+				logger.finer("[refreshTreePreservingExpansion] Successfully restored path: " + pathToString(newPath));
+				restoredCount++;
+			} else {
+				logger.fine("[refreshTreePreservingExpansion] Failed to restore path: " + pathStr);
+			}
 		}
-	}
+		logger.fine("[refreshTreePreservingExpansion] Restored " + restoredCount + "/" + expandedPaths.size() + " paths");
+	});
 }
 
 private String pathToString(TreePath path) {
 	StringBuilder sb = new StringBuilder();
 	Object[] elements = path.getPath();
 	for (int i = 0; i < elements.length; i++) {
-		if (i > 0) sb.append("/");
+		if (i > 0) sb.append("|");
 		NBTNode node = (NBTNode) elements[i];
 		Tag tag = node.getTag();
 		if (tag != null) {
@@ -1554,37 +1573,62 @@ private String pathToString(TreePath path) {
 }
 
 private TreePath stringToPath(String pathStr) {
+	logger.finer("[stringToPath] Converting path string: " + pathStr);
 	NBTNode root = treeModel.getRootNode();
-	if (root == null) return null;
+	if (root == null) {
+		logger.fine("[stringToPath] Root is null");
+		return null;
+	}
 
-	String[] parts = pathStr.split("/");
+	String[] parts = pathStr.split("\\|");
+	logger.finer("[stringToPath] Path parts count: " + parts.length);
 	NBTNode current = root;
-	Object[] pathElements = new Object[parts.length];
-	pathElements[0] = root;
+	java.util.List<Object> pathElements = new java.util.ArrayList<>();
+	pathElements.add(root);
 
 	for (int i = 1; i < parts.length; i++) {
 		String part = parts[i];
+		logger.finest("[stringToPath] Processing part[" + i + "]: " + part);
 		int colonIdx = part.lastIndexOf(":");
-		if (colonIdx < 0) continue;
+		if (colonIdx < 0) {
+			logger.finest("[stringToPath] No colon found in part: " + part);
+			continue;
+		}
 
 		String name = part.substring(0, colonIdx);
 		int typeOrdinal = Integer.parseInt(part.substring(colonIdx + 1));
+		logger.finest("[stringToPath] Looking for child: name=" + name + ", typeOrdinal=" + typeOrdinal);
 
+		boolean found = false;
+		logger.finest("[stringToPath] Current node child count: " + current.getChildCount());
 		for (int j = 0; j < current.getChildCount(); j++) {
 			NBTNode child = (NBTNode) current.getChildAt(j);
 			Tag childTag = child.getTag();
 			if (childTag != null) {
 				String childName = childTag.getName() != null ? childTag.getName() : "";
-				if (childName.equals(name) && childTag.getType().ordinal() == typeOrdinal) {
+				int childTypeOrdinal = childTag.getType().ordinal();
+				logger.finest("[stringToPath] Checking child[" + j + "]: name=" + childName + ", typeOrdinal=" + childTypeOrdinal);
+				if (childName.equals(name) && childTypeOrdinal == typeOrdinal) {
 					current = child;
-					pathElements[i] = child;
+					pathElements.add(child);
+					found = true;
+					logger.finest("[stringToPath] Found matching child at index " + j);
 					break;
 				}
+			} else {
+				logger.finest("[stringToPath] Child[" + j + "] has null tag");
 			}
+		}
+
+		if (!found) {
+			logger.finer("[stringToPath] Failed to find child: name=" + name + ", typeOrdinal=" + typeOrdinal);
+			return null;
 		}
 	}
 
-	return new TreePath(pathElements);
+	TreePath result = new TreePath(pathElements.toArray());
+	logger.finer("[stringToPath] Successfully created TreePath with " + pathElements.size() + " elements");
+	return result;
 }
 
 private void pasteTag() {

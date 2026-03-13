@@ -33,11 +33,11 @@ _JAVA_OPTIONS='-Dawt.useSystemAAFontSettings=lcd -Dsun.java2d.xrender=true -Dsun
 
 目前较C#原版新增支持：
 
+- 首选项
 - 新建窗口
-- 首选项编辑
+- 跨窗口粘贴
 - 视图排序（按名称、按标签类型）
 - 更人性化的Hex Editor和UUID显示
-- 跨窗口粘贴（应用内新建的窗口之间）
 - 拖拽复制（测试中）
 
 支持命令行传入多个文件：
