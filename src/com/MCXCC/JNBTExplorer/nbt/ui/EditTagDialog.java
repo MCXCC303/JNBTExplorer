@@ -5,8 +5,6 @@ import com.MCXCC.JNBTExplorer.nbt.tag.*;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.List;
 
 public class EditTagDialog extends JDialog {
 private final Tag tag;
@@ -17,7 +15,6 @@ private JTextField hexArea;
 private JTable arrayTable;
 private DefaultTableModel tableModel;
 private boolean isArrayEditor = false;
-private Runnable onConfirmed;
 
 public interface EditCallback {
 	void onEditComplete(boolean confirmed, Tag tag);
@@ -243,47 +240,6 @@ private String formatByteArrayHex(byte[] arr) {
 		sb.append(String.format("%02x", arr[i] & 0xFF));
 		if (i < arr.length - 1) {
 			sb.append("-");
-		}
-	}
-	return sb.toString();
-}
-
-private byte[] intArrayToBytes(int[] arr) {
-	byte[] bytes = new byte[arr.length * 4];
-	for (int i = 0; i < arr.length; i++) {
-		bytes[i * 4] = (byte) (arr[i] & 0xFF);
-		bytes[i * 4 + 1] = (byte) ((arr[i] >> 8) & 0xFF);
-		bytes[i * 4 + 2] = (byte) ((arr[i] >> 16) & 0xFF);
-		bytes[i * 4 + 3] = (byte) ((arr[i] >> 24) & 0xFF);
-	}
-	return bytes;
-}
-
-private byte[] longArrayToBytes(long[] arr) {
-	byte[] bytes = new byte[arr.length * 8];
-	for (int i = 0; i < arr.length; i++) {
-		for (int j = 0; j < 8; j++) {
-			bytes[i * 8 + j] = (byte) ((arr[i] >> (j * 8)) & 0xFF);
-		}
-	}
-	return bytes;
-}
-
-private byte[] shortArrayToBytes(short[] arr) {
-	byte[] bytes = new byte[arr.length * 2];
-	for (int i = 0; i < arr.length; i++) {
-		bytes[i * 2] = (byte) (arr[i] & 0xFF);
-		bytes[i * 2 + 1] = (byte) ((arr[i] >> 8) & 0xFF);
-	}
-	return bytes;
-}
-
-private String bytesToHex(byte[] bytes) {
-	StringBuilder sb = new StringBuilder();
-	for (int i = 0; i < bytes.length; i++) {
-		sb.append(String.format("%02x", bytes[i] & 0xFF));
-		if (i < bytes.length - 1) {
-			sb.append(" ");
 		}
 	}
 	return sb.toString();
@@ -571,7 +527,4 @@ private boolean parseArrayValue() {
 	}
 }
 
-public boolean isConfirmed() {
-	return confirmed;
-}
 }

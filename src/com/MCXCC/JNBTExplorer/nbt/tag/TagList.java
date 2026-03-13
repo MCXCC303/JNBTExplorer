@@ -5,7 +5,7 @@ import java.util.List;
 
 public class TagList extends Tag {
 private final List<Tag> tags;
-private TagType elementType;
+private final TagType elementType;
 
 public TagList(String name, TagType elementType) {
 	super(name);
@@ -19,10 +19,6 @@ public List<Tag> getTags() {
 
 public TagType getElementType() {
 	return elementType;
-}
-
-public void setElementType(TagType elementType) {
-	this.elementType = elementType;
 }
 
 public void addTag(Tag tag) {

@@ -13,7 +13,6 @@ private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-M
 private static final SimpleDateFormat FILE_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
 private PrintWriter writer;
 private boolean initialized;
-private String logFilePath;
 
 public Logger(Date windowCreationTime) {
 	try {
@@ -25,7 +24,7 @@ public Logger(Date windowCreationTime) {
 		}
 
 		String fileName = FILE_DATE_FORMAT.format(windowCreationTime) + ".log";
-		logFilePath = new File(logDir, fileName).getAbsolutePath();
+		String logFilePath = new File(logDir, fileName).getAbsolutePath();
 		writer = new PrintWriter(new FileWriter(logFilePath, true));
 		initialized = true;
 		info("Logger initialized, log file: " + logFilePath);

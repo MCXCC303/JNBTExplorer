@@ -83,28 +83,7 @@ public void loadChildren() {
 	if (tag instanceof TagCompound compound) {
 		List<Tag> sortedTags = new ArrayList<>(compound.getTags());
 
-		Comparator<Tag> comparator = (t1, t2) -> 0;
-		boolean hasTypeSort = typeSortMode != SortMode.NONE;
-		boolean hasNameSort = nameSortMode != SortMode.NONE;
-
-		if (hasTypeSort || hasNameSort) {
-			comparator = Comparator.comparing((Tag t) -> {
-				if (hasTypeSort) {
-					if (typeSortMode == SortMode.TYPE_DESC) {
-						return -t.getType().getId();
-					} else {
-						return t.getType().getId();
-					}
-				}
-				return 0;
-			});
-
-			if (hasNameSort) {
-				comparator = comparator.thenComparing((Tag t) -> t.getName() != null ? t.getName() : "", nameSortMode == SortMode.NAME_DESC
-					? String.CASE_INSENSITIVE_ORDER.reversed()
-					: String.CASE_INSENSITIVE_ORDER);
-			}
-		}
+		Comparator<Tag> comparator = getTagComparator();
 
 		sortedTags.sort(comparator);
 
@@ -120,6 +99,32 @@ public void loadChildren() {
 			children.add(childNode);
 		}
 	}
+}
+
+private static Comparator<Tag> getTagComparator() {
+	Comparator<Tag> comparator = (t1, t2) -> 0;
+	boolean hasTypeSort = typeSortMode != SortMode.NONE;
+	boolean hasNameSort = nameSortMode != SortMode.NONE;
+
+	if (hasTypeSort || hasNameSort) {
+		comparator = Comparator.comparing((Tag t) -> {
+			if (hasTypeSort) {
+				if (typeSortMode == SortMode.TYPE_DESC) {
+					return -t.getType().getId();
+				} else {
+					return t.getType().getId();
+				}
+			}
+			return 0;
+		});
+
+		if (hasNameSort) {
+			comparator = comparator.thenComparing((Tag t) -> t.getName() != null ? t.getName() : "", nameSortMode == SortMode.NAME_DESC
+				? String.CASE_INSENSITIVE_ORDER.reversed()
+				: String.CASE_INSENSITIVE_ORDER);
+		}
+	}
+	return comparator;
 }
 
 public void clearChildren() {

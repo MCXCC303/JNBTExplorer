@@ -52,12 +52,11 @@ private JButton searchNextButton;
 private JButton searchPrevButton;
 private JToolBar toolBar2;
 private boolean searchPanelVisible = false;
-private List<NBTNode> searchResults;
+private final List<NBTNode> searchResults;
 private int currentSearchIndex;
 
 // Find and Replace
 private FindReplaceDialog findReplaceDialog;
-private NBTNode currentReplaceNode;
 
 public MainFrame() {
 	this(null);
@@ -862,13 +861,6 @@ private void updateSearchButtons() {
 	searchPrevButton.setEnabled(hasResults);
 }
 
-private void resetSearch() {
-	searchResults.clear();
-	currentSearchIndex = -1;
-	updateSearchButtons();
-	statusLabel.setText("Ready");
-}
-
 // Find and Replace functionality
 private void showFindReplaceDialog() {
 	logger.info("Showing Find and Replace dialog");
@@ -1312,15 +1304,13 @@ private void addTag() {
 	logger.info("Adding new tag to parent: " + parent.getName());
 
 	Set<String> existingNames = new HashSet<>();
-	if (parent.getTag() instanceof TagCompound) {
-		TagCompound compound = (TagCompound) parent.getTag();
+	if (parent.getTag() instanceof TagCompound compound) {
 		for (Tag tag : compound.getTags()) {
 			if (tag.getName() != null) {
 				existingNames.add(tag.getName());
 			}
 		}
-	} else if (parent.getTag() instanceof TagList) {
-		TagList list = (TagList) parent.getTag();
+	} else if (parent.getTag() instanceof TagList list) {
 		for (Tag tag : list.getTags()) {
 			if (tag.getName() != null) {
 				existingNames.add(tag.getName());
@@ -1717,8 +1707,7 @@ private void pasteTag() {
 			logger.info("Pasting tag: " + tagName + " (type: " + newTag.getType() + ") to TagCompound");
 		} else {
 
-			String originalName = tagName;
-			String newName = originalName;
+			String newName = tagName;
 			int counter = 1;
 			while (true) {
 				boolean nameExists = false;
@@ -1729,7 +1718,7 @@ private void pasteTag() {
 				if (!nameExists) {
 					break;
 				}
-				newName = originalName + "_" + counter;
+				newName = tagName + "_" + counter;
 				counter++;
 			}
 			newTag.setName(newName);

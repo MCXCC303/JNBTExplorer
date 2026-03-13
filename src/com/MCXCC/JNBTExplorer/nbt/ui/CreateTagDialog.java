@@ -3,9 +3,9 @@ package com.MCXCC.JNBTExplorer.nbt.ui;
 import com.MCXCC.JNBTExplorer.nbt.tag.*;
 
 import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.Set;
 
@@ -20,9 +20,8 @@ private DefaultTableModel tableModel;
 private JPanel mainPanel;
 private JPanel valuePanel;
 private JPanel arrayPanel;
-private JLabel valueLabel;
-private CreateCallback callback;
-private Set<String> existingNames;
+private final CreateCallback callback;
+private final Set<String> existingNames;
 private JButton okButton;
 private JLabel hintLabel;
 
@@ -66,7 +65,7 @@ private void initUI() {
 	mainPanel.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
 
 	valuePanel = new JPanel(new GridLayout(1, 2, 5, 5));
-	valueLabel = new JLabel("Value:");
+	JLabel valueLabel = new JLabel("Value:");
 	valueField = new JTextField();
 	valuePanel.add(valueLabel);
 	valuePanel.add(valueField);
@@ -134,10 +133,12 @@ private void initUI() {
 		public void insertUpdate(DocumentEvent e) {
 			validateName();
 		}
+
 		@Override
 		public void removeUpdate(DocumentEvent e) {
 			validateName();
 		}
+
 		@Override
 		public void changedUpdate(DocumentEvent e) {
 			validateName();
@@ -333,11 +334,4 @@ private short[] parseShortArray() {
 	return arr;
 }
 
-public Tag getNewTag() {
-	return newTag;
-}
-
-public boolean isConfirmed() {
-	return confirmed;
-}
 }
