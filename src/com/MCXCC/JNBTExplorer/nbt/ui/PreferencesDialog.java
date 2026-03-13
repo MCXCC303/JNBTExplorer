@@ -17,6 +17,8 @@ private JCheckBox dragAndDropCheckBox;
 private JCheckBox showTypeIconsCheckBox;
 private JCheckBox alwaysShowNamesCheckBox;
 private JCheckBox showArrayRawValuesCheckBox;
+private JCheckBox debugModeCheckBox;
+private JComboBox<String> logLevelComboBox;
 private boolean confirmed = false;
 
 public PreferencesDialog(JFrame parent, ConfigManager configManager, Logger logger) {
@@ -28,14 +30,13 @@ public PreferencesDialog(JFrame parent, ConfigManager configManager, Logger logg
 }
 
 private void initComponents() {
-	setSize(800, 350);
+	setSize(600, 420);
 	setLayout(new BorderLayout());
 
 	JPanel contentPanel = new JPanel();
-	contentPanel.setLayout(new GridLayout(7, 2, 10, 10));
+	contentPanel.setLayout(new GridLayout(9, 2, 10, 10));
 	contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-	// Default Type Sort Mode
 	JLabel typeSortModeLabel = new JLabel("Default Type Sort Mode:");
 	typeSortModeComboBox = new JComboBox<>(new String[]{
 		SortMode.TYPE_ASC.getDisplayName(),
@@ -53,7 +54,6 @@ private void initComponents() {
 	contentPanel.add(typeSortModeLabel);
 	contentPanel.add(typeSortModeComboBox);
 
-	// Default Name Sort Mode
 	JLabel nameSortModeLabel = new JLabel("Default Name Sort Mode:");
 	nameSortModeComboBox = new JComboBox<>(new String[]{
 		SortMode.NAME_ASC.getDisplayName(),
@@ -71,7 +71,6 @@ private void initComponents() {
 	contentPanel.add(nameSortModeLabel);
 	contentPanel.add(nameSortModeComboBox);
 
-	// Icon Style
 	JLabel iconStyleLabel = new JLabel("Icon Style:");
 	iconStyleComboBox = new JComboBox<>(new String[]{"Classic", "Modern", "Original"});
 	String currentIconStyle = configManager.getIconStyle();
@@ -85,42 +84,64 @@ private void initComponents() {
 	contentPanel.add(iconStyleLabel);
 	contentPanel.add(iconStyleComboBox);
 
-	// Enable Drag and Drop
+	JLabel logLevelLabel = new JLabel("*Log Level");
+	logLevelComboBox = new JComboBox<>(new String[]{
+		"SEVERE",
+		"WARNING",
+		"INFO",
+		"CONFIG",
+		"FINE",
+		"FINER",
+		"FINEST",
+		"ALL"
+	});
+	String currentLogLevel = configManager.getLogLevel();
+	for (int i = 0; i < logLevelComboBox.getItemCount(); i++) {
+		if (logLevelComboBox.getItemAt(i).equals(currentLogLevel)) {
+			logLevelComboBox.setSelectedIndex(i);
+			break;
+		}
+	}
+	contentPanel.add(logLevelLabel);
+	contentPanel.add(logLevelComboBox);
+
+	JLabel debugModeLabel = new JLabel("*Debug Mode:");
+	debugModeCheckBox = new JCheckBox();
+	debugModeCheckBox.setSelected(configManager.isDebugMode());
+	contentPanel.add(debugModeLabel);
+	contentPanel.add(debugModeCheckBox);
+
 	JLabel dragAndDropLabel = new JLabel("*Enable Drag and Drop (Beta):");
 	dragAndDropCheckBox = new JCheckBox();
 	dragAndDropCheckBox.setSelected(configManager.isDragAndDropEnabled());
 	contentPanel.add(dragAndDropLabel);
 	contentPanel.add(dragAndDropCheckBox);
 
-	// Show Type Icons
 	JLabel showTypeIconsLabel = new JLabel("Show Type Icons:");
 	showTypeIconsCheckBox = new JCheckBox();
 	showTypeIconsCheckBox.setSelected(configManager.isShowTypeIcons());
 	contentPanel.add(showTypeIconsLabel);
 	contentPanel.add(showTypeIconsCheckBox);
 
-	// Always Show Names
 	JLabel alwaysShowNamesLabel = new JLabel("Always Show Names:");
 	alwaysShowNamesCheckBox = new JCheckBox();
 	alwaysShowNamesCheckBox.setSelected(configManager.isAlwaysShowNames());
 	contentPanel.add(alwaysShowNamesLabel);
 	contentPanel.add(alwaysShowNamesCheckBox);
 
-	// Show Array Raw Values
 	JLabel showArrayRawValuesLabel = new JLabel("Show Array Raw Values:");
 	showArrayRawValuesCheckBox = new JCheckBox();
 	showArrayRawValuesCheckBox.setSelected(configManager.isShowArrayRawValues());
 	contentPanel.add(showArrayRawValuesLabel);
 	contentPanel.add(showArrayRawValuesCheckBox);
 
+
 	add(contentPanel, BorderLayout.CENTER);
 
-	// Bottom panel with note and buttons
 	JPanel bottomPanel = new JPanel(new BorderLayout());
 	bottomPanel.setBorder(BorderFactory.createEmptyBorder(0, 20, 10, 20));
 
-	// Note label
-	JLabel noteLabel = new JLabel("*Require Restart");
+	JLabel noteLabel = new JLabel("* Restart Required  ");
 	noteLabel.setFont(new Font(noteLabel.getFont().getName(), Font.ITALIC, 12));
 	bottomPanel.add(noteLabel, BorderLayout.WEST);
 
@@ -147,7 +168,6 @@ private void initComponents() {
 }
 
 private void savePreferences() {
-	// Save default sort modes
 	int typeSortModeIndex = typeSortModeComboBox.getSelectedIndex();
 	if (typeSortModeIndex == 0) {
 		configManager.setDefaultTypeSortMode("TYPE_ASC");
@@ -166,7 +186,6 @@ private void savePreferences() {
 		configManager.setDefaultNameSortMode("NONE");
 	}
 
-	// Save icon style
 	int iconStyleIndex = iconStyleComboBox.getSelectedIndex();
 	if (iconStyleIndex == 1) {
 		configManager.setIconStyle("modern");
@@ -176,13 +195,13 @@ private void savePreferences() {
 		configManager.setIconStyle("classic");
 	}
 
-	// Save other preferences
 	configManager.setDragAndDropEnabled(dragAndDropCheckBox.isSelected());
 	configManager.setShowTypeIcons(showTypeIconsCheckBox.isSelected());
 	configManager.setAlwaysShowNames(alwaysShowNamesCheckBox.isSelected());
 	configManager.setShowArrayRawValues(showArrayRawValuesCheckBox.isSelected());
+	configManager.setDebugMode(debugModeCheckBox.isSelected());
+	configManager.setLogLevel((String) logLevelComboBox.getSelectedItem());
 
-	// Save config to file
 	configManager.saveConfig();
 	logger.info("Preferences saved");
 }

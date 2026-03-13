@@ -69,6 +69,8 @@ private void setDefaultValues() {
 	properties.setProperty("showTypeIcons", "true");
 	properties.setProperty("alwaysShowNames", "true");
 	properties.setProperty("showArrayRawValues", "false");
+	properties.setProperty("debugMode", "false");
+	properties.setProperty("logLevel", "INFO");
 }
 
 public void saveConfig() {
@@ -141,5 +143,21 @@ public String getIconStyle() {
 
 public void setIconStyle(String style) {
 	properties.setProperty("iconStyle", style);
+}
+
+public boolean isDebugMode() {
+	return Boolean.parseBoolean(properties.getProperty("debugMode", "false"));
+}
+
+public void setDebugMode(boolean enabled) {
+	properties.setProperty("debugMode", String.valueOf(enabled));
+}
+
+public String getLogLevel() {
+	return properties.getProperty("logLevel", "INFO");
+}
+
+public void setLogLevel(String level) {
+	properties.setProperty("logLevel", level);
 }
 }

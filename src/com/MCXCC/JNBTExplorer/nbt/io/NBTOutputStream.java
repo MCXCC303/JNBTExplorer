@@ -1,6 +1,7 @@
 package com.MCXCC.JNBTExplorer.nbt.io;
 
 import com.MCXCC.JNBTExplorer.nbt.tag.*;
+import com.MCXCC.JNBTExplorer.nbt.util.Logger;
 
 import java.io.Closeable;
 import java.io.DataOutputStream;
@@ -11,12 +12,16 @@ import java.util.zip.GZIPOutputStream;
 
 public class NBTOutputStream implements Closeable {
 private final DataOutputStream output;
+private final Logger logger;
 
-public NBTOutputStream(OutputStream out, boolean compressed) throws IOException {
+public NBTOutputStream(OutputStream out, boolean compressed, Logger logger) throws IOException {
+	this.logger = logger;
 	if (compressed) {
 		this.output = new DataOutputStream(new GZIPOutputStream(out));
+		logger.fine("NBTOutputStream created with GZIP compression");
 	} else {
 		this.output = new DataOutputStream(out);
+		logger.fine("NBTOutputStream created without compression");
 	}
 }
 

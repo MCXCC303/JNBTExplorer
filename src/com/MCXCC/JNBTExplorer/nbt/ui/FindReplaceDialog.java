@@ -180,4 +180,28 @@ private boolean matchesOperator(String target, String search, String operator) {
 		default -> target.contains(search);
 	};
 }
+
+public boolean isSearchByName() {
+	return findNameCheckBox.isSelected();
+}
+
+public boolean isSearchByValue() {
+	return findValueCheckBox.isSelected();
+}
+
+public boolean isSearchByType() {
+	return false;
+}
+
+public String getSearchText() {
+	StringBuilder sb = new StringBuilder();
+	if (isSearchByName() && !getFindName().isEmpty()) {
+		sb.append(getFindName());
+	}
+	if (isSearchByValue() && !getFindValue().isEmpty()) {
+		if (sb.length() > 0) sb.append(" ");
+		sb.append(getFindValue());
+	}
+	return sb.toString();
+}
 }

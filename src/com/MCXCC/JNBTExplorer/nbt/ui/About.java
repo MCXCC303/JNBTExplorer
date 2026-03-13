@@ -9,6 +9,7 @@ import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.logging.Level;
 
 public class About extends JDialog {
 private final Logger logger;
@@ -62,7 +63,7 @@ private void initComponents() {
 				Desktop.getDesktop().browse(new URI("https://github.com/MCXCC303/JNBTExplorer"));
 				logger.info("Opened GitHub link");
 			} catch (IOException | URISyntaxException ex) {
-				logger.error("Error opening GitHub link", ex);
+				logger.log(Level.SEVERE, "Error opening GitHub link", ex);
 				JOptionPane.showMessageDialog(About.this, "Error opening link", "Error", JOptionPane.ERROR_MESSAGE);
 			}
 		}

@@ -21,6 +21,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Level;
 
 public class MainFrame extends JFrame implements DropTargetListener {
 private final NBTTreeModel treeModel;
@@ -57,17 +58,31 @@ private int currentSearchIndex;
 
 // Find and Replace
 private FindReplaceDialog findReplaceDialog;
+private SearchHandler searchHandler;
 
 public MainFrame() {
-	this(null);
+	this(null, null, null);
 }
 
 public MainFrame(String filePath) {
-	Date windowCreationTime = new Date();
-	this.logger = new Logger(windowCreationTime);
-	this.configManager = new ConfigManager();
-	this.commandManager = new CommandManager();
-	logger.info("Creating MainFrame");
+	this(filePath, null, null);
+}
+
+public MainFrame(String filePath, ConfigManager configManager, Logger logger) {
+	if (configManager == null) {
+		this.configManager = new ConfigManager();
+	} else {
+		this.configManager = configManager;
+	}
+	
+	if (logger == null) {
+		this.logger = new Logger(new Date(), this.configManager);
+	} else {
+		this.logger = logger;
+	}
+	
+	this.commandManager = new CommandManager(this.logger);
+	this.logger.info("Creating MainFrame");
 
 	// Initialize search variables
 	searchResults = new ArrayList<>();
@@ -119,7 +134,7 @@ public MainFrame(String filePath) {
 			commandManager.clear();
 			logger.info("Loaded file from command line: " + filePath);
 		} catch (IOException e) {
-			logger.error("Failed to load file: " + filePath, e);
+			logger.log(Level.SEVERE, "Failed to load file: " + filePath, e);
 			JOptionPane.showMessageDialog(this,
 				"Error opening file: " + e.getMessage(),
 				"Error", JOptionPane.ERROR_MESSAGE);
@@ -132,6 +147,9 @@ public MainFrame(String filePath) {
 	tree.setModel(treeModel);
 	updateTitle();
 	logger.info("Tree model initialized");
+
+	searchHandler = new SearchHandler(this, treeModel, tree, statusLabel, logger);
+	searchHandler.setSearchButtons(searchNextButton, searchPrevButton);
 
 	addWindowListener(new WindowAdapter() {
 		@Override
@@ -232,7 +250,7 @@ private void initUI() {
 							});
 							logger.info("Started dragging " + tags.size() + " tags");
 						} catch (Exception e) {
-							logger.error("Error starting drag", e);
+							logger.log(Level.SEVERE, "Error starting drag", e);
 						}
 					}
 				}
@@ -681,7 +699,7 @@ private void openFile() {
 			statusLabel.setText("Opened: " + file.getName());
 			logger.info("File opened successfully: " + file.getName());
 		} catch (IOException e) {
-			logger.error("Error opening file: " + file.getAbsolutePath(), e);
+			logger.log(Level.SEVERE, "Error opening file: " + file.getAbsolutePath(), e);
 			JOptionPane.showMessageDialog(this,
 				"Error opening file: " + e.getMessage(),
 				"Error", JOptionPane.ERROR_MESSAGE);
@@ -705,7 +723,7 @@ private void saveFile() {
 			statusLabel.setText("Saved: " + currentFile.getName());
 			logger.info("File saved successfully: " + currentFile.getName());
 		} catch (IOException e) {
-			logger.error("Error saving file: " + currentFile.getAbsolutePath(), e);
+			logger.log(Level.SEVERE, "Error saving file: " + currentFile.getAbsolutePath(), e);
 			JOptionPane.showMessageDialog(this,
 				"Error saving file: " + e.getMessage(),
 				"Error", JOptionPane.ERROR_MESSAGE);
@@ -730,7 +748,7 @@ private void saveFileAs() {
 			statusLabel.setText("Saved: " + file.getName());
 			logger.info("File saved successfully: " + file.getName());
 		} catch (IOException e) {
-			logger.error("Error saving file: " + file.getAbsolutePath(), e);
+			logger.log(Level.SEVERE, "Error saving file: " + file.getAbsolutePath(), e);
 			JOptionPane.showMessageDialog(this,
 				"Error saving file: " + e.getMessage(),
 				"Error", JOptionPane.ERROR_MESSAGE);
@@ -757,82 +775,15 @@ private boolean checkSave() {
 
 // Search functionality methods
 private void performSearch() {
-	String searchText = searchField.getText().trim();
-	if (searchText.isEmpty()) {
-		JOptionPane.showMessageDialog(this, "Please enter search text", "Error", JOptionPane.ERROR_MESSAGE);
-		return;
-	}
-
-	logger.info("Performing full search: " + searchText);
-	searchResults.clear();
-	currentSearchIndex = -1;
-
-	// Start search from root
-	NBTNode root = (NBTNode) treeModel.getRoot();
-	searchNodesFull(root, searchText);
-
-	if (searchResults.isEmpty()) {
-		statusLabel.setText("No results found");
-		updateSearchButtons();
-		JOptionPane.showMessageDialog(this, "No results found", "Search", JOptionPane.INFORMATION_MESSAGE);
-	} else {
-		currentSearchIndex = 0;
-		selectSearchResult();
-		updateSearchButtons();
-		statusLabel.setText("Found " + searchResults.size() + " results - " + (currentSearchIndex + 1) + "/" + searchResults.size());
-		logger.info("Found " + searchResults.size() + " results");
-	}
-}
-
-private void searchNodesFull(NBTNode node, String searchText) {
-	if (node == null) return;
-
-	// Load children if not already loaded (for full search)
-	boolean wasExpanded = node.getChildCount() > 0;
-	if (!wasExpanded) {
-		node.loadChildren();
-	}
-
-	Tag tag = node.getTag();
-	if (tag != null) {
-		// Search by name
-		String name = tag.getName();
-		if (name != null && name.toLowerCase().contains(searchText.toLowerCase())) {
-			if (!searchResults.contains(node)) {
-				searchResults.add(node);
-			}
-		}
-
-		// Search by value
-		String value = node.toString();
-		if (value.toLowerCase().contains(searchText.toLowerCase())) {
-			if (!searchResults.contains(node)) {
-				searchResults.add(node);
-			}
-		}
-	}
-
-	// Recursively search children
-	for (int i = 0; i < node.getChildCount(); i++) {
-		NBTNode child = (NBTNode) node.getChildAt(i);
-		searchNodesFull(child, searchText);
-	}
+	searchHandler.performSearch(searchField.getText());
 }
 
 private void searchNext() {
-	if (!searchResults.isEmpty()) {
-		currentSearchIndex = (currentSearchIndex + 1) % searchResults.size();
-		selectSearchResult();
-		statusLabel.setText("Found " + searchResults.size() + " results - " + (currentSearchIndex + 1) + "/" + searchResults.size());
-	}
+	searchHandler.searchNext();
 }
 
 private void searchPrevious() {
-	if (!searchResults.isEmpty()) {
-		currentSearchIndex = (currentSearchIndex - 1 + searchResults.size()) % searchResults.size();
-		selectSearchResult();
-		statusLabel.setText("Found " + searchResults.size() + " results - " + (currentSearchIndex + 1) + "/" + searchResults.size());
-	}
+	searchHandler.searchPrevious();
 }
 
 private void selectSearchResult() {
@@ -1050,7 +1001,7 @@ private boolean performReplace(NBTNode node) {
 				logger.info("Replaced value of tag: " + tag.getName());
 			}
 		} catch (NumberFormatException e) {
-			logger.error("Invalid value format for replacement: " + newValue);
+			logger.severe("Invalid value format for replacement: " + newValue);
 		}
 	}
 
@@ -1060,7 +1011,6 @@ private boolean performReplace(NBTNode node) {
 private void exit() {
 	if (checkSave()) {
 		logger.info("Closing window");
-		logger.close();
 		dispose();
 	}
 }
@@ -1330,10 +1280,12 @@ private void addTag() {
 			}
 			commandManager.executeCommand(command);
 
+			finalParent.setModified(true);
 			finalParent.loadChildren();
 			treeModel.fireTreeStructureChanged(finalParentPath);
 			statusLabel.setText("Added tag: " + newTag.getName());
 			logger.info("Added tag: " + newTag.getName() + " (type: " + newTag.getType() + ") to parent: " + finalParent.getName());
+			updateTitle();
 		} else {
 			logger.info("Add tag operation cancelled");
 		}
@@ -1667,13 +1619,23 @@ private void pasteTag() {
 		path = new TreePath(treeModel.getRoot());
 	}
 
-	NBTNode parent = (NBTNode) path.getLastPathComponent();
-	if (!parent.isContainer()) {
-		JOptionPane.showMessageDialog(this,
-			"Can only paste tags to compound or list tags",
-			"Error", JOptionPane.ERROR_MESSAGE);
-		logger.warning("Paste failed: parent is not a container");
-		return;
+	NBTNode selectedNode = (NBTNode) path.getLastPathComponent();
+	NBTNode parent;
+	TreePath parentPath;
+
+	if (!selectedNode.isContainer()) {
+		if (path.getPathCount() <= 1) {
+			JOptionPane.showMessageDialog(this,
+				"Cannot paste: selected element has no parent container",
+				"Error", JOptionPane.ERROR_MESSAGE);
+			logger.warning("Paste failed: no parent container available");
+			return;
+		}
+		parentPath = path.getParentPath();
+		parent = (NBTNode) parentPath.getLastPathComponent();
+	} else {
+		parent = selectedNode;
+		parentPath = path;
 	}
 
 	if (!NBTClipboard.getInstance().hasTag()) {
@@ -1732,7 +1694,7 @@ private void pasteTag() {
 
 	parent.setModified(true);
 	parent.loadChildren();
-	treeModel.fireTreeStructureChanged(path);
+	treeModel.fireTreeStructureChanged(parentPath);
 
 	if (copiedTags.size() == 1) {
 		statusLabel.setText("Pasted tag: " + copiedTags.get(0).getName());
@@ -1742,6 +1704,7 @@ private void pasteTag() {
 		logger.info("Successfully pasted " + copiedTags.size() + " tags");
 	}
 	updatePasteButtonState();
+	updateTitle();
 }
 
 private void expandSelectedNode() {
@@ -2123,7 +2086,7 @@ private void handleTagDrop(DropTargetDropEvent dtde) {
 			dtde.dropComplete(false);
 		}
 	} catch (Exception e) {
-		logger.error("Error handling tag drop", e);
+		logger.log(Level.SEVERE, "Error handling tag drop", e);
 		dtde.rejectDrop();
 		dtde.dropComplete(false);
 	}

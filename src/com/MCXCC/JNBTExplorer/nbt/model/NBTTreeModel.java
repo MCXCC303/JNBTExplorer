@@ -29,30 +29,36 @@ public void loadFile(String path) throws IOException {
 }
 
 public void loadFile(String path, boolean compressed) throws IOException {
+	logger.fine("loadFile() called - path: " + path + ", compressed: " + compressed);
 	logger.info("Loading NBT file: " + path + " (compressed: " + compressed + ")");
 	nbtFile = new NBTFile(path, logger);
 	nbtFile.load(compressed);
 	Tag rootTag = nbtFile.getRootTag();
 	if (rootTag != null) {
 		root = new NBTNode(rootTag);
-
+		logger.fine("Root tag created: " + rootTag.getType() + " - " + rootTag.getName());
 		if (root.getTag() != null) {
 			root.getTag().setName(nbtFile.getFile().getAbsolutePath());
 		}
 		root.loadChildren();
+		logger.fine("Root children loaded, child count: " + root.getChildCount());
 		logger.info("Loaded NBT file successfully: " + path);
 	} else {
 		root = null;
 		logger.warning("Loaded NBT file with no root tag: " + path);
 	}
 	fireTreeStructureChanged(new TreePath(root));
+	logger.fine("Tree structure changed event fired");
 }
 
 public void newFile() {
+	logger.fine("newFile() called - creating empty NBT file");
 	TagCompound rootTag = new TagCompound("");
 	nbtFile = null;
 	root = new NBTNode(rootTag);
+	logger.fine("New root node created: " + rootTag.getType());
 	fireTreeStructureChanged(new TreePath(root));
+	logger.fine("Tree structure changed event fired for new file");
 }
 
 public void saveFile() throws IOException {
@@ -61,12 +67,15 @@ public void saveFile() throws IOException {
 
 public void saveFile(boolean compressed) throws IOException {
 	if (nbtFile == null) {
+		logger.fine("saveFile() called but nbtFile is null");
 		throw new IllegalStateException("No file to save");
 	}
+	logger.fine("saveFile() called - path: " + nbtFile.getFile().getPath() + ", compressed: " + compressed);
 	logger.info("Saving NBT file: " + nbtFile.getFile().getPath() + " (compressed: " + compressed + ")");
 	nbtFile.setRootTag(root.getTag());
 	nbtFile.save(compressed);
 	clearModified(root);
+	logger.fine("Modified flags cleared");
 	logger.info("Saved NBT file successfully: " + nbtFile.getFile().getPath());
 }
 
@@ -75,6 +84,7 @@ public void saveFileAs(String path) throws IOException {
 }
 
 public void saveFileAs(String path, boolean compressed) throws IOException {
+	logger.fine("saveFileAs() called - path: " + path + ", compressed: " + compressed);
 	logger.info("Saving NBT file as: " + path + " (compressed: " + compressed + ")");
 	nbtFile = new NBTFile(path, logger);
 	nbtFile.setRootTag(root.getTag());
@@ -82,13 +92,16 @@ public void saveFileAs(String path, boolean compressed) throws IOException {
 
 	if (root.getTag() != null) {
 		root.getTag().setName(nbtFile.getFile().getAbsolutePath());
+		logger.fine("Root tag name updated to: " + nbtFile.getFile().getAbsolutePath());
 	}
 	clearModified(root);
 	fireTreeStructureChanged(new TreePath(root));
+	logger.fine("Tree structure changed event fired for save as");
 	logger.info("Saved NBT file successfully: " + path);
 }
 
 private void clearModified(NBTNode node) {
+	logger.fine("clearModified() called for node: " + node.getName());
 	node.setModified(false);
 	for (int i = 0; i < node.getChildCount(); i++) {
 		clearModified((NBTNode) node.getChildAt(i));
