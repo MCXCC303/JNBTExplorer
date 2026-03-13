@@ -24,9 +24,9 @@ javac -encoding UTF-8 -d bin -sourcepath src src/com/MCXCC/JNBTExplorer/JNBTExpl
 jar cvfm JNBTExplorer.jar MANIFEST.MF -C bin .
 ```
 
-对于现代高分辨率屏幕，执行时建议使用jvm参数：
+或者直接使用项目自带的build脚本构建：
 ```shell
-_JAVA_OPTIONS='-Dawt.useSystemAAFontSettings=lcd -Dsun.java2d.xrender=true -Dsun.java2d.uiScale=2.0' java -jar JNBTExplorer.jar
+./build
 ```
 
 ## 特点：

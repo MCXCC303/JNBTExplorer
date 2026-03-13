@@ -5,7 +5,9 @@ clear() {
     rm -rfv bin
     rm -rfv out
     rm -fv *.jar
+    echo ""
     echo "Clean completed!"
+    echo ""
 }
 
 build() {
@@ -60,8 +62,6 @@ all() {
 }
 
 help() {
-    echo "Usage: bash build.sh <target>"
-    echo ""
     echo "Targets:"
     echo "  all   - Clean and build the project (default)"
     echo "  clear - Clean build artifacts only"

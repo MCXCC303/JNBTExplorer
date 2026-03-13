@@ -145,7 +145,7 @@ private void initComponents() {
 	mainPanel.add(Box.createVerticalStrut(10));
 
 	JPanel hidpiPanel = new JPanel(new GridLayout(4, 2, 10, 8));
-	hidpiPanel.setBorder(BorderFactory.createTitledBorder("HiDPI Settings (Restart Required)"));
+	hidpiPanel.setBorder(BorderFactory.createTitledBorder("*HiDPI Settings"));
 
 	JLabel enableHiDPILabel = new JLabel("Enable HiDPI Support:");
 	enableHiDPICheckBox = new JCheckBox();
