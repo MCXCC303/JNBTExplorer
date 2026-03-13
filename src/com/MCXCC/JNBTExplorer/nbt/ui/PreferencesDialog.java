@@ -19,6 +19,10 @@ private JCheckBox alwaysShowNamesCheckBox;
 private JCheckBox showArrayRawValuesCheckBox;
 private JCheckBox debugModeCheckBox;
 private JComboBox<String> logLevelComboBox;
+private JCheckBox enableHiDPICheckBox;
+private JComboBox<String> uiScaleComboBox;
+private JCheckBox enableFontAntialiasingCheckBox;
+private JCheckBox enableXRenderCheckBox;
 private boolean confirmed = false;
 
 public PreferencesDialog(JFrame parent, ConfigManager configManager, Logger logger) {
@@ -30,13 +34,15 @@ public PreferencesDialog(JFrame parent, ConfigManager configManager, Logger logg
 }
 
 private void initComponents() {
-	setSize(600, 420);
+	setSize(500, 500);
 	setLayout(new BorderLayout());
 
-	JPanel contentPanel = new JPanel();
-	contentPanel.setLayout(new GridLayout(9, 2, 10, 10));
-	contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+	JPanel mainPanel = new JPanel();
+	mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+	mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
+	JPanel generalPanel = new JPanel(new GridLayout(9, 2, 10, 8));
+	generalPanel.setBorder(BorderFactory.createTitledBorder("General"));
 	JLabel typeSortModeLabel = new JLabel("Default Type Sort Mode:");
 	typeSortModeComboBox = new JComboBox<>(new String[]{
 		SortMode.TYPE_ASC.getDisplayName(),
@@ -51,8 +57,8 @@ private void initComponents() {
 	} else {
 		typeSortModeComboBox.setSelectedIndex(2);
 	}
-	contentPanel.add(typeSortModeLabel);
-	contentPanel.add(typeSortModeComboBox);
+	generalPanel.add(typeSortModeLabel);
+	generalPanel.add(typeSortModeComboBox);
 
 	JLabel nameSortModeLabel = new JLabel("Default Name Sort Mode:");
 	nameSortModeComboBox = new JComboBox<>(new String[]{
@@ -68,8 +74,8 @@ private void initComponents() {
 	} else {
 		nameSortModeComboBox.setSelectedIndex(2);
 	}
-	contentPanel.add(nameSortModeLabel);
-	contentPanel.add(nameSortModeComboBox);
+	generalPanel.add(nameSortModeLabel);
+	generalPanel.add(nameSortModeComboBox);
 
 	JLabel iconStyleLabel = new JLabel("Icon Style:");
 	iconStyleComboBox = new JComboBox<>(new String[]{"Classic", "Modern", "Original"});
@@ -81,10 +87,10 @@ private void initComponents() {
 	} else {
 		iconStyleComboBox.setSelectedIndex(0);
 	}
-	contentPanel.add(iconStyleLabel);
-	contentPanel.add(iconStyleComboBox);
+	generalPanel.add(iconStyleLabel);
+	generalPanel.add(iconStyleComboBox);
 
-	JLabel logLevelLabel = new JLabel("*Log Level");
+	JLabel logLevelLabel = new JLabel("*Log Level:");
 	logLevelComboBox = new JComboBox<>(new String[]{
 		"SEVERE",
 		"WARNING",
@@ -102,41 +108,87 @@ private void initComponents() {
 			break;
 		}
 	}
-	contentPanel.add(logLevelLabel);
-	contentPanel.add(logLevelComboBox);
+	generalPanel.add(logLevelLabel);
+	generalPanel.add(logLevelComboBox);
 
 	JLabel debugModeLabel = new JLabel("*Debug Mode:");
 	debugModeCheckBox = new JCheckBox();
 	debugModeCheckBox.setSelected(configManager.isDebugMode());
-	contentPanel.add(debugModeLabel);
-	contentPanel.add(debugModeCheckBox);
+	generalPanel.add(debugModeLabel);
+	generalPanel.add(debugModeCheckBox);
 
-	JLabel dragAndDropLabel = new JLabel("*Enable Drag and Drop (Beta):");
+	JLabel dragAndDropLabel = new JLabel("*Enable Drag and Drop:");
 	dragAndDropCheckBox = new JCheckBox();
 	dragAndDropCheckBox.setSelected(configManager.isDragAndDropEnabled());
-	contentPanel.add(dragAndDropLabel);
-	contentPanel.add(dragAndDropCheckBox);
+	generalPanel.add(dragAndDropLabel);
+	generalPanel.add(dragAndDropCheckBox);
 
 	JLabel showTypeIconsLabel = new JLabel("Show Type Icons:");
 	showTypeIconsCheckBox = new JCheckBox();
 	showTypeIconsCheckBox.setSelected(configManager.isShowTypeIcons());
-	contentPanel.add(showTypeIconsLabel);
-	contentPanel.add(showTypeIconsCheckBox);
+	generalPanel.add(showTypeIconsLabel);
+	generalPanel.add(showTypeIconsCheckBox);
 
 	JLabel alwaysShowNamesLabel = new JLabel("Always Show Names:");
 	alwaysShowNamesCheckBox = new JCheckBox();
 	alwaysShowNamesCheckBox.setSelected(configManager.isAlwaysShowNames());
-	contentPanel.add(alwaysShowNamesLabel);
-	contentPanel.add(alwaysShowNamesCheckBox);
+	generalPanel.add(alwaysShowNamesLabel);
+	generalPanel.add(alwaysShowNamesCheckBox);
 
 	JLabel showArrayRawValuesLabel = new JLabel("Show Array Raw Values:");
 	showArrayRawValuesCheckBox = new JCheckBox();
 	showArrayRawValuesCheckBox.setSelected(configManager.isShowArrayRawValues());
-	contentPanel.add(showArrayRawValuesLabel);
-	contentPanel.add(showArrayRawValuesCheckBox);
+	generalPanel.add(showArrayRawValuesLabel);
+	generalPanel.add(showArrayRawValuesCheckBox);
 
+	mainPanel.add(generalPanel);
+	mainPanel.add(Box.createVerticalStrut(10));
 
-	add(contentPanel, BorderLayout.CENTER);
+	JPanel hidpiPanel = new JPanel(new GridLayout(4, 2, 10, 8));
+	hidpiPanel.setBorder(BorderFactory.createTitledBorder("HiDPI Settings (Restart Required)"));
+
+	JLabel enableHiDPILabel = new JLabel("Enable HiDPI Support:");
+	enableHiDPICheckBox = new JCheckBox();
+	enableHiDPICheckBox.setSelected(configManager.isEnableHiDPISupport());
+	hidpiPanel.add(enableHiDPILabel);
+	hidpiPanel.add(enableHiDPICheckBox);
+
+	JLabel uiScaleLabel = new JLabel("UI Scale:");
+	uiScaleComboBox = new JComboBox<>(new String[]{"100%", "125%", "150%", "175%", "200%", "250%", "300%"});
+	double currentScale = configManager.getUiScale();
+	int scalePercent = (int) (currentScale * 100);
+	String[] scaleOptions = {"100%", "125%", "150%", "175%", "200%", "250%", "300%"};
+	for (int i = 0; i < scaleOptions.length; i++) {
+		int optionPercent = Integer.parseInt(scaleOptions[i].replace("%", ""));
+		if (optionPercent == scalePercent) {
+			uiScaleComboBox.setSelectedIndex(i);
+			break;
+		}
+	}
+	hidpiPanel.add(uiScaleLabel);
+	hidpiPanel.add(uiScaleComboBox);
+
+	JLabel enableFontAntialiasingLabel = new JLabel("Enable Font Antialiasing:");
+	enableFontAntialiasingCheckBox = new JCheckBox();
+	enableFontAntialiasingCheckBox.setSelected(configManager.isEnableFontAntialiasing());
+	hidpiPanel.add(enableFontAntialiasingLabel);
+	hidpiPanel.add(enableFontAntialiasingCheckBox);
+
+	JLabel enableXRenderLabel = new JLabel("Enable XRender (Linux):");
+	enableXRenderCheckBox = new JCheckBox();
+	enableXRenderCheckBox.setSelected(configManager.isEnableXRender());
+	hidpiPanel.add(enableXRenderLabel);
+	hidpiPanel.add(enableXRenderCheckBox);
+
+	mainPanel.add(hidpiPanel);
+
+	JScrollPane scrollPane = new JScrollPane(mainPanel);
+	scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+	scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+	scrollPane.setBorder(null);
+	scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+
+	add(scrollPane, BorderLayout.CENTER);
 
 	JPanel bottomPanel = new JPanel(new BorderLayout());
 	bottomPanel.setBorder(BorderFactory.createEmptyBorder(0, 20, 10, 20));
@@ -201,6 +253,13 @@ private void savePreferences() {
 	configManager.setShowArrayRawValues(showArrayRawValuesCheckBox.isSelected());
 	configManager.setDebugMode(debugModeCheckBox.isSelected());
 	configManager.setLogLevel((String) logLevelComboBox.getSelectedItem());
+
+	configManager.setEnableHiDPISupport(enableHiDPICheckBox.isSelected());
+	String scaleStr = (String) uiScaleComboBox.getSelectedItem();
+	double scaleValue = Double.parseDouble(scaleStr.replace("%", "")) / 100.0;
+	configManager.setUiScale(scaleValue);
+	configManager.setEnableFontAntialiasing(enableFontAntialiasingCheckBox.isSelected());
+	configManager.setEnableXRender(enableXRenderCheckBox.isSelected());
 
 	configManager.saveConfig();
 	logger.info("Preferences saved");

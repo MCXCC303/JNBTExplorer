@@ -3,6 +3,7 @@ package com.MCXCC.JNBTExplorer;
 import com.MCXCC.JNBTExplorer.nbt.ui.MainFrame;
 import com.MCXCC.JNBTExplorer.nbt.util.ConfigManager;
 import com.MCXCC.JNBTExplorer.nbt.util.Logger;
+import com.MCXCC.JNBTExplorer.nbt.util.RuntimeSettings;
 
 import javax.swing.*;
 import javax.swing.UIManager.LookAndFeelInfo;
@@ -14,6 +15,11 @@ private static Logger logger;
 
 public static void main(String[] args) {
 	ConfigManager configManager = new ConfigManager();
+
+	RuntimeSettings runtimeSettings = new RuntimeSettings();
+	runtimeSettings.loadFromConfig(configManager);
+	runtimeSettings.applySettings();
+
 	logger = new Logger(new Date(), configManager);
 
 	Runtime.getRuntime().addShutdownHook(new Thread(() -> {

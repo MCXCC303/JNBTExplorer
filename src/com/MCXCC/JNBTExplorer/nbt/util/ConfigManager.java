@@ -70,6 +70,10 @@ private void setDefaultValues() {
 	properties.setProperty("showArrayRawValues", "false");
 	properties.setProperty("debugMode", "false");
 	properties.setProperty("logLevel", "INFO");
+	properties.setProperty("enableHiDPISupport", "true");
+	properties.setProperty("uiScale", "2.0");
+	properties.setProperty("enableFontAntialiasing", "true");
+	properties.setProperty("enableXRender", "true");
 }
 
 public void saveConfig() {
@@ -158,5 +162,41 @@ public String getLogLevel() {
 
 public void setLogLevel(String level) {
 	properties.setProperty("logLevel", level);
+}
+
+public boolean isEnableHiDPISupport() {
+	return Boolean.parseBoolean(properties.getProperty("enableHiDPISupport", "true"));
+}
+
+public void setEnableHiDPISupport(boolean enabled) {
+	properties.setProperty("enableHiDPISupport", String.valueOf(enabled));
+}
+
+public double getUiScale() {
+	try {
+		return Double.parseDouble(properties.getProperty("uiScale", "2.0"));
+	} catch (NumberFormatException e) {
+		return 2.0;
+	}
+}
+
+public void setUiScale(double scale) {
+	properties.setProperty("uiScale", String.valueOf(scale));
+}
+
+public boolean isEnableFontAntialiasing() {
+	return Boolean.parseBoolean(properties.getProperty("enableFontAntialiasing", "true"));
+}
+
+public void setEnableFontAntialiasing(boolean enabled) {
+	properties.setProperty("enableFontAntialiasing", String.valueOf(enabled));
+}
+
+public boolean isEnableXRender() {
+	return Boolean.parseBoolean(properties.getProperty("enableXRender", "true"));
+}
+
+public void setEnableXRender(boolean enabled) {
+	properties.setProperty("enableXRender", String.valueOf(enabled));
 }
 }
