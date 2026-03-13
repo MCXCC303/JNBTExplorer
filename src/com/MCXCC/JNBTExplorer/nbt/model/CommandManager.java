@@ -1,6 +1,7 @@
 package com.MCXCC.JNBTExplorer.nbt.model;
 
 import com.MCXCC.JNBTExplorer.nbt.util.Logger;
+
 import java.util.Stack;
 
 public class CommandManager {

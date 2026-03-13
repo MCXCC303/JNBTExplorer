@@ -16,11 +16,8 @@ import java.awt.dnd.*;
 import java.awt.event.*;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashSet;
+import java.util.*;
 import java.util.List;
-import java.util.Set;
 import java.util.logging.Level;
 
 public class MainFrame extends JFrame implements DropTargetListener {
@@ -58,29 +55,21 @@ private int currentSearchIndex;
 
 // Find and Replace
 private FindReplaceDialog findReplaceDialog;
-private SearchHandler searchHandler;
+private final SearchHandler searchHandler;
 
 public MainFrame() {
 	this(null, null, null);
 }
 
-public MainFrame(String filePath) {
-	this(filePath, null, null);
-}
-
 public MainFrame(String filePath, ConfigManager configManager, Logger logger) {
-	if (configManager == null) {
-		this.configManager = new ConfigManager();
-	} else {
-		this.configManager = configManager;
-	}
-	
+	this.configManager = Objects.requireNonNullElseGet(configManager, ConfigManager::new);
+
 	if (logger == null) {
 		this.logger = new Logger(new Date(), this.configManager);
 	} else {
 		this.logger = logger;
 	}
-	
+
 	this.commandManager = new CommandManager(this.logger);
 	this.logger.info("Creating MainFrame");
 

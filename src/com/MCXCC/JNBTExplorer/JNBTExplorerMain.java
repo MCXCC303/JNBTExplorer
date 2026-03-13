@@ -15,13 +15,13 @@ private static Logger logger;
 public static void main(String[] args) {
 	ConfigManager configManager = new ConfigManager();
 	logger = new Logger(new Date(), configManager);
-	
+
 	Runtime.getRuntime().addShutdownHook(new Thread(() -> {
 		if (logger != null) {
 			logger.close();
 		}
 	}));
-	
+
 	logger.info("NBT Editor starting...");
 
 	try {

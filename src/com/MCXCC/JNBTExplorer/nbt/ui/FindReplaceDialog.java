@@ -199,7 +199,7 @@ public String getSearchText() {
 		sb.append(getFindName());
 	}
 	if (isSearchByValue() && !getFindValue().isEmpty()) {
-		if (sb.length() > 0) sb.append(" ");
+		if (!sb.isEmpty()) sb.append(" ");
 		sb.append(getFindValue());
 	}
 	return sb.toString();

@@ -12,10 +12,8 @@ import java.util.zip.GZIPInputStream;
 
 public class NBTInputStream implements Closeable {
 private final DataInputStream input;
-private final Logger logger;
 
 public NBTInputStream(InputStream in, boolean compressed, Logger logger) throws IOException {
-	this.logger = logger;
 	if (compressed) {
 		this.input = new DataInputStream(new GZIPInputStream(in));
 		logger.fine("NBTInputStream created with GZIP compression");
